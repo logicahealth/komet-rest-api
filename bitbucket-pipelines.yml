@@ -1,0 +1,9 @@
+image: flate/maven-openjfx:latest
+
+pipelines:
+  default:
+    - step:
+        caches:
+          - maven
+        script:
+          - mvn -B -e -Djava.awt.headless=true clean install -s settings.xml

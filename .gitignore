@@ -1,12 +1,79 @@
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
+### Maven stuff
+target
+target/**
 
-# Avoid ignoring Maven wrapper jar file (.jar files are usually ignored)
-!/.mvn/wrapper/maven-wrapper.jar
+###Eclipse Stuff
+
+*.pydevproject
+.metadata
+.gradle
+bin/**
+tmp/**
+tmp/**/*
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.project/
+.project
+.classpath
+.repository/
+test-output/
+
+# External tool builders
+.externalToolBuilders/
+
+# Locally stored "Eclipse launch configurations"
+*.launch
+
+# CDT-specific
+.cproject
+
+# PDT-specific
+.buildpath
+
+# TeXlipse plugin
+.texlipse
+
+#############
+## Windows detritus
+#############
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Mac crap
+.DS_Store
+
+#Other misc files
+/taxonomy-view/berkeley-db copy/
+/isaac-app/berkeley-db copy/
+/isaac-app/berkeley-db/
+legoData.db/
+UserPreferences.xml
+workflowDB
+workflowDB/**
+*.eccs
+test-output/**
+
+*.log
+/isaac-workflow/workflowDB/
+
+# IntelliJ IDEA stuff
+*.iml
+.idea
+.idea/
+*.data/
+/object-chronicles/
+/search/
+/decryption.password

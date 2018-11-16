@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<enunciate>
+	<!-- To allow extendability, enunciate does not validate against the XSD
+		<enunciate xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" 
+			xsi:noNamespaceSchemaLocation="http://enunciate.webcohesion.com/schemas/enunciate-2.4.0.xsd">
+	-->
+
+	<description package="net.sagebits.tmp.isaac.rest.api"/>
+
+	<modules>
+		<docs title="ISAAC REST Server" splashPackage="net.sagebits.tmp.isaac.rest.api"/>
+	</modules>
+	
+	<api-classes>
+		<!-- This class isn't found by enunciate, due to how it is used. -->
+		<include pattern="net.sagebits.tmp.isaac.rest.api.exceptions.RestExceptionResponse"/>
+		<include pattern="net.sagebits.tmp.isaac.rest.**"/>
+	</api-classes>
+</enunciate>

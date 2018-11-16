@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>sh.isaac</groupId>
+		<artifactId>isaac</artifactId>
+		<version>4.59-SNAPSHOT</version>
+	</parent>
+
+	<groupId>net.sagebits.uts.rest</groupId>
+	<artifactId>uts-rest-api</artifactId>
+	<version>6.15-SNAPSHOT</version>
+	<packaging>war</packaging>
+
+	<name>ISAAC REST Server</name>
+
+	<description>
+		A REST server with a simple data model for accessing ISAAC functionality.  Primarily supports
+		the ISAAC web GUI.
+	</description>
+
+	<organization>
+		<name>VetsEZ (Veterans EZ Info, Inc.) in combination with Sagebits LLC</name>
+		<url>http://vetsez.company/</url>
+	</organization>
+
+	<developers>
+		<developer>
+			<name>Dan Armbrust</name>
+			<organization>Sagebits LLC</organization>
+			<email>daniel.armbrust.list@sagebits.net</email>
+		</developer>
+		<developer>
+			<properties>
+				<info>For a complete listing of developers, clone the project and execute 'git shortlog -sn'</info>
+			</properties>
+		</developer>
+	</developers>
+
+	<scm>
+		<url>https://github.com/OSEHRA/isaac-rest-api</url>
+	</scm>
+
+	<properties>
+		<isaac.version>${project.parent.version}</isaac.version>
+		<jersey.version>2.26</jersey.version>
+		<enunciate.version>2.10.1</enunciate.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>2.8.4</version>  <!-- We need to lock this to the version that jersey expects, rather than the version isaac tries to give us. -->
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>ibdf</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>commit</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>stamp</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>identifier</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>chronology</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>datastore-locator</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>progress</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>coordinate</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>path</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.provider</groupId>
+			<artifactId>query</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.misc</groupId>
+			<artifactId>util</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.misc</groupId>
+			<artifactId>vhat-util</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.misc</groupId>
+			<artifactId>security</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.misc</groupId>
+			<artifactId>associations</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.misc</groupId>
+			<artifactId>exporters</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.misc</groupId>
+			<artifactId>importers</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.integration</groupId>
+			<artifactId>import-utils</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>sh.isaac.integration</groupId>
+			<artifactId>db-config-builder</artifactId>
+			<version>${isaac.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+		</dependency>
+
+		<!-- Need to override the scope on these 3 logging packages -->
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-core</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-slf4j-impl</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-jul</artifactId>
+			<scope>compile</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.core</groupId>
+			<artifactId>jersey-server</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.media</groupId>
+			<artifactId>jersey-media-json-jackson</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish.jersey.inject</groupId>
+			<artifactId>jersey-hk2</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>javax.servlet-api</artifactId>
+			<version>3.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.media</groupId>
+			<artifactId>jersey-media-moxy</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+
+
+		<!-- Test dependencies -->
+		<dependency>
+			<groupId>org.glassfish.jersey.containers</groupId>
+			<artifactId>jersey-container-grizzly2-http</artifactId>
+			<version>${jersey.version}</version>
+			<scope>test</scope> <!-- This is just for testing in eclipse -->
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.test-framework.providers</groupId>
+			<artifactId>jersey-test-framework-provider-grizzly2</artifactId>
+			<version>${jersey.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.test-framework</groupId>
+			<artifactId>jersey-test-framework-core</artifactId>
+			<version>${jersey.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.testng</groupId>
+			<artifactId>testng</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- For tomcat -->
+		<dependency>
+			<groupId>org.glassfish.jersey.containers</groupId>
+			<artifactId>jersey-container-servlet-core</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.glassfish.jersey.containers</groupId>
+			<artifactId>jersey-container-servlet</artifactId>
+			<version>${jersey.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.webcohesion.enunciate</groupId>
+			<artifactId>enunciate-core-annotations</artifactId>
+			<version>${enunciate.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-web</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-api</artifactId>
+		</dependency>
+
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>com.webcohesion.enunciate</groupId>
+				<artifactId>enunciate-maven-plugin</artifactId>
+				<version>${enunciate.version}</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>assemble</goal>
+						</goals>
+						<configuration>
+							<configFile>${basedir}/src/main/resources/enunciate.xml</configFile>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Extract test data (metadata ibdf file) -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>extract-test-dependencies</id>
+						<phase>generate-test-resources</phase>
+						<goals>
+							<goal>unpack</goal>
+						</goals>
+						<configuration>
+							<skip>${skipTests}</skip>
+							<artifactItems>
+								<artifact>
+									<groupId>sh.isaac.core</groupId>
+									<artifactId>metadata</artifactId>
+									<version>${isaac.version}</version>
+									<classifier>all</classifier>
+									<type>ibdf.zip</type>
+								</artifact>
+								<artifact>
+									<groupId>sh.isaac.core</groupId>
+									<artifactId>metadata</artifactId>
+									<version>${isaac.version}</version>
+									<classifier>all</classifier>
+									<type>json.zip</type>
+								</artifact>
+							</artifactItems>
+							<outputDirectory>${project.build.directory}/data</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<forkCount>1</forkCount>
+					<reuseForks>true</reuseForks>
+					<parallel>none</parallel>
+					<useManifestOnlyJar>false</useManifestOnlyJar>
+					<argLine>-ea -d64 -Djava.awt.headless=true</argLine>
+					<!--debugForkedProcess>true</debugForkedProcess -->
+				</configuration>
+			</plugin>
+
+			<!-- Workaround for a bug in jgitflow -->
+			<plugin>
+				<groupId>external.atlassian.jgitflow</groupId>
+				<artifactId>jgitflow-maven-plugin</artifactId>
+				<version>${jgitflow-maven-plugin.version}</version>
+				<dependencies>
+					<dependency>
+						<groupId>xerces</groupId> <!-- workaround jgitflow https://ecosystem.atlassian.net/browse/MJF-251 -->
+						<artifactId>xercesImpl</artifactId>
+						<version>2.11.0</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+				</configuration>
+			</plugin>
+		</plugins>
+		<pluginManagement>
+			<plugins>
+				<!--This plugin's configuration is used to store Eclipse m2e settings only. It has no influence on the Maven build itself. -->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
+											com.webcohesion.enunciate
+										</groupId>
+										<artifactId>
+											enunciate-maven-plugin
+										</artifactId>
+										<versionRange>
+											[2.2.0,)
+										</versionRange>
+										<goals>
+											<goal>assemble</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+
+	<profiles>
+		<!-- To bring this server up, execute: 'mvn test-compile -Pstart-server' -->
+		<profile>
+			<id>start-server</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>build-and-start</id>
+								<phase>test-compile</phase>
+								<configuration>
+									<classpathScope>test</classpathScope>
+									<mainClass>net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner</mainClass>
+									<!-- Uncomment this argument, and adjust, to point at a specific database -->
+									<arguments>
+										<!--<argument>isaacDatabaseLocation=/mnt/STORAGE/Work/VetsEZ/Workspaces/ISAAC2/ISAAC-rest/vhat-2016.08.18-1.8-SNAPSHOT-all.data</argument> -->
+									</arguments>
+								</configuration>
+								<goals>
+									<goal>java</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>run</id>
+			<build>
+				<plugins>
+					<!-- to start the server from the command line with 'mvn -Prun exec:exec' without doing a full build -->
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<configuration>
+							<executable>java</executable>
+							<classpathScope>test</classpathScope>
+							<arguments>
+								<!-- Uncomment this to point at a specific db -->
+								<!-- argument>-DisaacDatabaseLocation=${isaacDatabaseLocation}</argument -->
+								<argument>-classpath</argument>
+								<classpath />
+								<argument>net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner</argument>
+							</arguments>
+						</configuration>
+						<executions>
+							<execution>
+								<id>start-only</id>
+								<goals>
+									<goal>exec</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+</project>

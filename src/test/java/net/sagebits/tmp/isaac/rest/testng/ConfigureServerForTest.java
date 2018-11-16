@@ -1,0 +1,136 @@
+/*
+ * Copyright 2018 VetsEZ Inc, Sagebits LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package net.sagebits.tmp.isaac.rest.testng;
+
+import static sh.isaac.api.constants.SystemPropertyConstants.DATA_STORE_ROOT_LOCATION_PROPERTY;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.nio.file.Paths;
+import java.util.concurrent.ExecutionException;
+import javax.ws.rs.core.Application;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.test.JerseyTestNg;
+import org.testng.Assert;
+import org.testng.annotations.AfterSuite;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+import net.sagebits.tmp.isaac.rest.ApplicationConfig;
+import net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner;
+import sh.isaac.MetaData;
+import sh.isaac.api.Get;
+import sh.isaac.api.LookupService;
+import sh.isaac.api.bootstrap.TermAux;
+import sh.isaac.api.commit.CommitService;
+import sh.isaac.api.externalizable.BinaryDataReaderService;
+import sh.isaac.api.index.IndexBuilderService;
+import sh.isaac.api.util.RecursiveDelete;
+import sh.isaac.converters.sharedUtils.IBDFCreationUtility;
+import sh.isaac.converters.sharedUtils.stats.ConverterUUID;
+import sh.isaac.misc.constants.VHATConstants;
+import sh.isaac.misc.modules.vhat.VHATIsAHasParentSynchronizingChronologyChangeListener;
+import sh.isaac.utility.Frills;
+
+/**
+ * {@link ConfigureServerForTest}
+ *
+ * @author <a href="mailto:daniel.armbrust.list@gmail.com">Dan Armbrust</a> 
+ */
+@Test(suiteName="testSuite", groups="first")
+public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
+{
+	public static Logger log = LogManager.getLogger(ReadOnlyRestTest.class);
+
+	@Override
+	protected Application configure()
+	{
+		try
+		{
+			System.out.println("Launching Jersey within Grizzley for tests");
+			File file = new File("target/test.data");
+			RecursiveDelete.delete(file);
+			file.mkdirs();
+			System.setProperty(DATA_STORE_ROOT_LOCATION_PROPERTY, "target/test.data");
+			return LocalGrizzlyRunner.configureJerseyServer();
+		}
+		catch (Exception e)
+		{
+			throw new RuntimeException(e);
+		}
+	}
+	
+	@BeforeClass
+	public void testDataLoad() throws Exception
+	{
+		// Load in the test data
+		try
+		{
+			while (!ApplicationConfig.getInstance().isIsaacReady())
+			{
+				Thread.sleep(50);
+			}
+	
+			BaseTestCode.configure(this);
+			BinaryDataReaderService reader = Get.binaryDataReader(Paths.get("target", "data", "IsaacMetadataAuxiliary.ibdf"));
+			CommitService commitService = Get.commitService();
+			reader.getStream().forEach((object) -> {
+				commitService.importNoChecks(object);
+			});
+			commitService.postProcessImportNoChecks();
+
+			Get.startIndexTask((Class<IndexBuilderService>[]) null).get();
+
+			createVHATHasParentAssociation();
+		}
+		catch (FileNotFoundException | InterruptedException | ExecutionException e)
+		{
+			Assert.fail("Test data file not found", e);
+		}
+		Assert.assertEquals(Get.conceptDescriptionText(MetaData.ASSEMBLAGE____SOLOR.getNid()), "Assemblage (SOLOR)");
+	}
+	
+	// VHAT-specific metadata
+	@SuppressWarnings("deprecation")
+	public void createVHATHasParentAssociation() throws Exception
+	{
+		File debugOutput = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "restTestVHATMetaDataImportDebug");
+		debugOutput.mkdir();
+		Get.service(ConverterUUID.class).configureNamespace(TermAux.VHAT_MODULES.getPrimordialUuid());
+		IBDFCreationUtility importUtil = new IBDFCreationUtility(MetaData.USER____SOLOR.getPrimordialUuid(), 
+				Get.identifierService().getUuidPrimordialForNid(Frills.createAndGetDefaultEditModule(MetaData.VHAT_MODULES____SOLOR.getNid())),
+				MetaData.DEVELOPMENT_PATH____SOLOR.getPrimordialUuid(), debugOutput, null);
+		// HAS_PARENT_VHAT_ASSOCIATION_TYPE_OBJECT = importUtil.createConcept(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE_UUID, null,
+		// sh.isaac.api.Status.ACTIVE, null);
+		importUtil.createConcept(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE.getPrimordialUuid(), "has_parent", true, null, sh.isaac.api.Status.ACTIVE);
+		importUtil.configureConceptAsAssociation(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE.getPrimordialUuid(), null);
+		LookupService.get().getService(VHATIsAHasParentSynchronizingChronologyChangeListener.class).enable();
+	}
+
+	@Override
+	public void tearDown() throws Exception
+	{
+		// do not shut down at this point, we need it up for the rest of the test cases.
+		//Will have a 'end test' which actually does the shutdown.
+	}
+	
+	@Test(priority=Integer.MAX_VALUE)
+	@AfterSuite
+	public void realShutDown() throws Exception
+	{
+		log.info("realShutDown executing, which will stop isaac");
+		super.tearDown();
+	}
+}
