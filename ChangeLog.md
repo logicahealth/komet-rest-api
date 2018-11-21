@@ -3,7 +3,10 @@ ISAAC-rest Changelog
 This changelog summarizes changes and fixes which are a part of each revision.  For more details on the fixes, refer tracking numbers where provided, and the git commit history.  Note that this is not the same as the API Changelog.md.  This file will contain information on all changes - including bug fixes.  The API Changelog will only contain documentation on changes of the API - and those are tied to the 
 API version number, not the release version number.
 
-* 2018/11/?? - 6.15
+* 2018/11/?? - 6.16
+    * API tweaks in the LogicGraph returns, per the API changelog
+
+* 2018/11/20 - 6.15
     * improve description reading for RestIdentifiedObjects, so it follows the coord prefs better
     * small API changes to hierarchy under RestLogicNode.  See API changelog.
     * API enhancements to support logic graph editing.

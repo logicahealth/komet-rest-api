@@ -30,10 +30,7 @@
 
 package net.sagebits.tmp.isaac.rest.api1.data.logic;
 
-import java.util.Optional;
 import javax.xml.bind.annotation.XmlElement;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import net.sagebits.tmp.isaac.rest.ExpandUtil;
 import net.sagebits.tmp.isaac.rest.api1.data.RestIdentifiedObject;
@@ -43,12 +40,9 @@ import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
-import sh.isaac.api.component.semantic.SemanticChronology;
-import sh.isaac.api.component.semantic.version.LogicGraphVersion;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.model.logic.node.external.ConceptNodeWithUuids;
 import sh.isaac.model.logic.node.internal.ConceptNodeWithNids;
-import sh.isaac.utility.Frills;
 
 /**
  * 
@@ -62,8 +56,6 @@ import sh.isaac.utility.Frills;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
 public class RestConceptNode extends RestLogicNode
 {
-	private static Logger LOG = LogManager.getLogger();
-
 	/**
 	 * The int nid of the concept referred to by this REST logic graph node
 	 */
@@ -71,20 +63,20 @@ public class RestConceptNode extends RestLogicNode
 	RestIdentifiedObject concept;
 
 	/**
-	 * Optionally-expandable RestConceptVersion corresponding to RestConceptNode concept
+	 * Optionally-expandable RestConceptVersion corresponding to RestConceptNode concept.  Include by 
+	 * specifying expand=version
+	 * 
+	 * To also include parent counts, specify expand=version,countParents
+	 * 
+	 * This will also include the primitive vs defined status for the concept - you must request an expand of 'version' to get
+	 * the primitive vs defined information.
 	 */
 	@XmlElement
 	RestConceptVersion conceptVersion;
 
 	/**
-	 * A boolean indicating whether the concept referred to by this RestConceptVersion is defined rather than primitive
-	 */
-	@XmlElement
-	boolean isConceptDefined;
-
-	/**
 	 * The String text description of the concept referred to by this REST logic graph node. It is included as a convenience, as it may be retrieved
-	 * based on the concept nid.
+	 * based on the concept nid
 	 */
 	@XmlElement
 	String conceptDescription;
@@ -116,19 +108,6 @@ public class RestConceptNode extends RestLogicNode
 	{
 		this.concept = new RestIdentifiedObject(conceptNid, IsaacObjectType.CONCEPT);
 		conceptDescription = Get.conceptService().getSnapshot(RequestInfo.get().getManifoldCoordinate()).conceptDescriptionText(conceptNid);
-		try
-		{
-			// TODO Joel - what does this mean? You left: Fine tune this when data problems resolved
-			Optional<SemanticChronology> lgcOptional = Frills.getLogicGraphChronology(conceptNid, RequestInfo.get().getStated(),
-					RequestInfo.get().getStampCoordinate(), RequestInfo.get().getLanguageCoordinate(), RequestInfo.get().getLogicCoordinate());
-			LatestVersion<LogicGraphVersion> lgs = Frills.getLogicGraphVersion(lgcOptional.get(), RequestInfo.get().getStampCoordinate());
-			isConceptDefined = Frills.isConceptFullyDefined(lgs.get());
-		}
-		catch (Exception e)
-		{
-			LOG.warn("Problem getting isConceptDefined value (defaulting to false) for ConceptNode with {}", this.concept.toString());
-			isConceptDefined = false;
-		}
 
 		if (RequestInfo.get().shouldExpand(ExpandUtil.versionExpandable))
 		{
@@ -136,7 +115,8 @@ public class RestConceptNode extends RestLogicNode
 			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 			// TODO handle contradictions
 			// TODO handle processId?
-			conceptVersion = new RestConceptVersion(olcv.get(), true, null);
+			conceptVersion = new RestConceptVersion(olcv.get(), true, false, RequestInfo.get().shouldExpand(ExpandUtil.countParents),
+					false, false, RequestInfo.get().getStated(), false, false, null);
 		}
 		else
 		{

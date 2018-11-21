@@ -71,7 +71,11 @@ public class LogicGraphAPIs
 	 * If no version parameter is specified, returns the latest version.
 	 * 
 	 * @param id - A UUID or nid identifying the concept at the root of the logic graph.
-	 * @param expand - comma separated list of fields to expand. Supports 'chronology', 'logicNodeUuids' and/or 'version'
+	 * @param expand - comma separated list of fields to expand. Supports 
+	 *     'chronology' - to include the chronology of the semantic that carries the logic graph, 
+	 *     'version'  - to include RestConceptVersion objects inside of RestConceptNode and RestTypedConnectorNode types.
+	 *     'countParents' - may only be specified in combination with 'version' - will cause the expanded version to also have the parent count populated.
+	 *     
 	 * @param processId if set, specifies that retrieved components should be checked against the specified active
 	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
 	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,

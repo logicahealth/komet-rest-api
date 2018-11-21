@@ -393,7 +393,7 @@ public class ApplicationConfig extends ResourceConfig implements ContainerLifecy
 									log.info("Loading beer....");
 									TurtleImportMojoDirect timd = new TurtleImportMojoDirect();
 									timd.configure(null, beer.toPath(), "0.8", null);
-									timd.convertContent(update -> {});
+									timd.convertContent(update -> {}, (work, total) -> {});
 									Get.indexDescriptionService().refreshQueryEngine();
 									log.info("Loaded Beer");
 								}

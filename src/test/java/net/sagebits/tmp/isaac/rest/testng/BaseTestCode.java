@@ -265,7 +265,7 @@ public class BaseTestCode
 		File beer = new File("src/test/resources/turtle/bevontology-0.8.ttl");
 		TurtleImportMojoDirect timd = new TurtleImportMojoDirect();
 		timd.configure(null, beer.toPath(), "0.8", null);
-		timd.convertContent(update -> {});
+		timd.convertContent(update -> {}, (work, total) -> {});
 		Get.indexDescriptionService().refreshQueryEngine();
 		CoordinatesTokens.clearCache();
 	}

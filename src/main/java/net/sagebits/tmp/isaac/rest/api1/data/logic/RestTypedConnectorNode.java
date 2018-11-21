@@ -30,7 +30,6 @@
 
 package net.sagebits.tmp.isaac.rest.api1.data.logic;
 
-import java.util.Optional;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlSeeAlso;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -43,12 +42,9 @@ import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
-import sh.isaac.api.component.semantic.SemanticChronology;
-import sh.isaac.api.component.semantic.version.LogicGraphVersion;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.model.logic.node.external.TypedNodeWithUuids;
 import sh.isaac.model.logic.node.internal.TypedNodeWithNids;
-import sh.isaac.utility.Frills;
 
 /**
  * 
@@ -80,16 +76,21 @@ public abstract class RestTypedConnectorNode extends RestConnectorNode
 	RestIdentifiedObject connectorTypeConcept;
 	
 	/**
-	 * A boolean indicating whether the concept referred to by this connectorTypeConcept is defined rather than primitive
-	 */
-	@XmlElement
-	boolean isConceptDefined;
-
-	/**
 	 * Optionally-populated RestConceptVersion for the connectorTypeConcept - pass expand='version'
+	 * 
+	 * To also include parent counts, specify expand=version,countParents
+	 * 
+	 * This will also include the primitive vs defined status for the concept - you must request an expand of 'version' to get
+	 * the primitive vs defined information.
 	 */
 	@XmlElement
 	RestConceptVersion connectorTypeConceptVersion;
+	
+	/**
+	 * The String text description of the concept referred to by the connectorTypeConcept
+	 */
+	@XmlElement
+	String connectorTypeDescription;
 
 	protected RestTypedConnectorNode()
 	{
@@ -119,28 +120,18 @@ public abstract class RestTypedConnectorNode extends RestConnectorNode
 	
 	private void finishSetup()
 	{
+		connectorTypeDescription = Get.conceptService().getSnapshot(RequestInfo.get().getManifoldCoordinate()).conceptDescriptionText(connectorTypeConcept.nid);
 		if (RequestInfo.get().shouldExpand(ExpandUtil.versionExpandable))
 		{
 			ConceptChronology cc = Get.conceptService().getConceptChronology(connectorTypeConcept.nid);
 			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 			// TODO handle contradictions
-			connectorTypeConceptVersion = new RestConceptVersion(olcv.get(), true, null);
+			connectorTypeConceptVersion = new RestConceptVersion(olcv.get(), true, false, RequestInfo.get().shouldExpand(ExpandUtil.countParents),
+					false, false, RequestInfo.get().getStated(), false, false, null);
 		}
 		else
 		{
 			connectorTypeConceptVersion = null;
-		}
-		try
-		{
-			Optional<SemanticChronology> lgcOptional = Frills.getLogicGraphChronology(connectorTypeConcept.nid, RequestInfo.get().getStated(),
-					RequestInfo.get().getStampCoordinate(), RequestInfo.get().getLanguageCoordinate(), RequestInfo.get().getLogicCoordinate());
-			LatestVersion<LogicGraphVersion> lgs = Frills.getLogicGraphVersion(lgcOptional.get(), RequestInfo.get().getStampCoordinate());
-			isConceptDefined = Frills.isConceptFullyDefined(lgs.get());
-		}
-		catch (Exception e)
-		{
-			LOG.warn("Problem getting isConceptDefined value (defaulting to false) for ConceptNode with {}", connectorTypeConcept.toString());
-			isConceptDefined = false;
 		}
 	}
 }

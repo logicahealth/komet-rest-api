@@ -15,7 +15,16 @@ Bug fixes should not be documented here, rather, than should be documented in th
 
 *** Don't forget to update the value in the class RestSystemInfo ***
 
-* 2018/10/?? - 1.18.1
+* 2018/11/?? - 1.19.1
+    * Put back 'connectorTypeDescription' in the RestTypedConnectorNode, as the comment below in 2.18.1 was wrong - RestIdentifiedObject doesn't 
+        reliably contain a description. 
+    * Added an expand option of 'countParents' to the LogicGraph read API, which in combination with the existing 'version' expand parameter
+        will cause a RestConceptVersion object to be returned inside of RestConceptNode and RestTypedConnectorNode, which has the parent
+        count populated.
+    * Removed isConceptDefined from both RestConceptNode and RestTypedConnectorNode, as this information is already included in the nested
+        RestConceptVersion object, so long as expand='version' is passed in.
+
+* 2018/11/20 - 1.18.1
     * Adding measureSemanticConcept to RestFeatureNode to align with internal API
     * Renaming RestUntypedConnectorNode to RestConnectorNode
     * Moving 'children' from RestLogicNode down into RestConnectorNode, so that it properly aligns with the API, and allows / doesn't 

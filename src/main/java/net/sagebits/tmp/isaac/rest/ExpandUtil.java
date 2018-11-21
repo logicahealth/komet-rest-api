@@ -49,4 +49,5 @@ public class ExpandUtil
 	public static final String comments = "comments";
 	public static final String source = "source";
 	public static final String target = "target";
+	public static final String countParents = "countParents";
 }
