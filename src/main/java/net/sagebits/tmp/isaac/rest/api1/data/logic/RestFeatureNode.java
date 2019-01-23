@@ -41,6 +41,8 @@ import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
+import sh.isaac.api.logic.NodeSemantic;
+import sh.isaac.model.logic.ConcreteDomainOperators;
 import sh.isaac.model.logic.node.external.FeatureNodeWithUuids;
 import sh.isaac.model.logic.node.internal.FeatureNodeWithNids;
 
@@ -51,8 +53,7 @@ import sh.isaac.model.logic.node.internal.FeatureNodeWithNids;
  * @author <a href="mailto:joel.kniaz.list@gmail.com">Joel Kniaz</a>
  *
  *         The RestFeatureNode contains a RestConcreteDomainOperatorsType operator type,
- *         must have exactly 1 child node,
- *         and has a RestNodeSemanticType == NodeSemantic.FEATURE.
+ *         must have exactly 1 child node, which is one of the literal types like {@link NodeSemantic#LITERAL_BOOLEAN}
  * 
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
@@ -98,7 +99,7 @@ public class RestFeatureNode extends RestTypedConnectorNode
 	public RestFeatureNode(FeatureNodeWithNids featureNodeWithNids)
 	{
 		super(featureNodeWithNids);
-		operator = new RestConcreteDomainOperatorsType(featureNodeWithNids.getOperator());
+		setup(featureNodeWithNids.getOperator(), Get.concept(featureNodeWithNids.getMeasureSemanticNid()));
 	}
 
 	/**
@@ -107,15 +108,21 @@ public class RestFeatureNode extends RestTypedConnectorNode
 	public RestFeatureNode(FeatureNodeWithUuids featureNodeWithUuids)
 	{
 		super(featureNodeWithUuids);
-		operator = new RestConcreteDomainOperatorsType(featureNodeWithUuids.getOperator());
-		ConceptChronology msc = Get.concept(featureNodeWithUuids.getMeasureSemanticUuid());
+		setup(featureNodeWithUuids.getOperator(), Get.concept(featureNodeWithUuids.getMeasureSemanticUuid()));
+	}
+	
+	private void setup(ConcreteDomainOperators cdo, ConceptChronology msc)
+	{
+		operator = new RestConcreteDomainOperatorsType(cdo);
 		measureSemanticConcept = new RestIdentifiedObject(msc);
 
 		if (RequestInfo.get().shouldExpand(ExpandUtil.versionExpandable))
 		{
 			LatestVersion<ConceptVersion> olcv = msc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 			// TODO handle contradictions
-			measureSemanticConceptVersion = new RestConceptVersion(olcv.get(), true, null);
+			measureSemanticConceptVersion = new RestConceptVersion(olcv.get(), true, RequestInfo.get().shouldExpand(ExpandUtil.includeParents),
+					RequestInfo.get().shouldExpand(ExpandUtil.countParents),
+					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), null);
 		}
 		else
 		{

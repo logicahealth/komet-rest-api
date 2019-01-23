@@ -115,8 +115,9 @@ public class RestConceptNode extends RestLogicNode
 			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 			// TODO handle contradictions
 			// TODO handle processId?
-			conceptVersion = new RestConceptVersion(olcv.get(), true, false, RequestInfo.get().shouldExpand(ExpandUtil.countParents),
-					false, false, RequestInfo.get().getStated(), false, false, null);
+			conceptVersion = new RestConceptVersion(olcv.get(), true, RequestInfo.get().shouldExpand(ExpandUtil.includeParents), 
+					RequestInfo.get().shouldExpand(ExpandUtil.countParents),
+					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), null);
 		}
 		else
 		{

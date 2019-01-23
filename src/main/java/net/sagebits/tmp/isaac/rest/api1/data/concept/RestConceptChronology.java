@@ -56,6 +56,7 @@ import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
 import sh.isaac.api.coordinate.LanguageCoordinate;
+import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.api.util.AlphanumComparator;
 import sh.isaac.utility.Frills;
@@ -123,15 +124,23 @@ public class RestConceptChronology implements Comparable<RestConceptChronology>
 
 	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType, UUID processId)
 	{
-		this(cc, includeAllVersions, includeLatestVersion, includeTerminologyType, processId, RequestInfo.get().getLanguageCoordinate());
+		this(cc, includeAllVersions, includeLatestVersion, includeTerminologyType, processId, RequestInfo.get().getLanguageCoordinate(), 
+				RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED);
+	}
+	
+	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType, UUID processId,
+			LanguageCoordinate descriptionLanguageCoordinate, boolean stated)
+	{
+		this(cc, includeAllVersions, includeLatestVersion, false, false, includeTerminologyType, processId, descriptionLanguageCoordinate, stated);
 	}
 
-	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType, UUID processId,
-			LanguageCoordinate descriptionLanguageCoordinate)
+	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeParents, 
+			boolean countParents, boolean includeTerminologyType, UUID processId, LanguageCoordinate descriptionLanguageCoordinate, boolean stated)
 	{
 		identifiers = new RestIdentifiedObject(cc);
 
-		description = Util.readBestDescription(cc.getNid(), RequestInfo.get().getStampCoordinate(), descriptionLanguageCoordinate);
+		description = Util.readBestDescription(cc.getNid(), RequestInfo.get().getStampCoordinate(), 
+				descriptionLanguageCoordinate == null ?  RequestInfo.get().getLanguageCoordinate() : descriptionLanguageCoordinate);
 
 		if (includeTerminologyType)
 		{
@@ -157,7 +166,7 @@ public class RestConceptChronology implements Comparable<RestConceptChronology>
 				List<ConceptVersion> cvl = cc.getVersionList();
 				for (ConceptVersion cv : cvl)
 				{
-					versions.add(new RestConceptVersion(cv, false, false, false, false, false, false, false, false, processId));
+					versions.add(new RestConceptVersion(cv, false, includeParents, countParents, false, false, false, false, false, processId));
 				}
 			}
 			else // if (includeLatestVersion)
@@ -168,7 +177,7 @@ public class RestConceptChronology implements Comparable<RestConceptChronology>
 				if (latest.isPresent())
 				{
 					// TODO handle contradictions
-					versions.add(new RestConceptVersion(latest.get(), false, false, false, false, false, false, false, false, processId));
+					versions.add(new RestConceptVersion(latest.get(), false, includeParents, countParents, false, false, stated, false, false, processId));
 				}
 			}
 		}

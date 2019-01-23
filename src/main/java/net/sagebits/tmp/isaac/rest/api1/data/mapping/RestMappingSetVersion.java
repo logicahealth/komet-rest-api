@@ -31,6 +31,8 @@
 package net.sagebits.tmp.isaac.rest.api1.data.mapping;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
@@ -66,7 +68,6 @@ import sh.isaac.api.component.semantic.version.DynamicVersion;
 import sh.isaac.api.component.semantic.version.dynamic.DynamicData;
 import sh.isaac.api.component.semantic.version.dynamic.types.DynamicNid;
 import sh.isaac.api.component.semantic.version.dynamic.types.DynamicString;
-import sh.isaac.api.constants.DynamicConstants;
 import sh.isaac.api.coordinate.StampCoordinate;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.mapping.constants.IsaacMappingConstants;
@@ -226,48 +227,102 @@ public class RestMappingSetVersion extends RestMappingSetVersionBase implements 
 				});
 
 		// Read the the description values
+		String aName = null;
+		String aDefinition = null;
+		ArrayList<DescriptionVersion> dvs = new ArrayList<>();
+		
 		Get.assemblageService().getSemanticChronologyStreamForComponent(mappingConcept.getNid()).filter(s -> s.getVersionType() == VersionType.DESCRIPTION)
-				.forEach(descriptionC -> {
-					if (name != null && description != null && inverseName != null)
+				.forEach(descriptionC -> 
+				{
+					LatestVersion<DescriptionVersion> dv = descriptionC.getLatestVersion(myStampCoord);
+					Util.logContradictions(log, dv);
+					if (dv.isPresent())
 					{
-						// noop... sigh... can't short-circuit in a forEach....
+						dvs.add(dv.get());
+					}
+				});
+		
+		//Sort the newest to the front
+		Collections.sort(dvs, new Comparator<DescriptionVersion>()
+		{
+			@Override
+			public int compare(DescriptionVersion o1, DescriptionVersion o2)
+			{
+				int r = Long.compare(o1.getTime(), o2.getTime()) * -1;
+				if (r == 0)  //break tie on active / inactive if possible
+				{
+					if (o1.isActive() && !o2.isActive())
+					{
+						return -1;
+					}
+					else if (!o1.isActive() && o2.isActive())
+					{
+						return 1;
+					}
+				}
+				return r;
+			}
+		});
+		
+		for(DescriptionVersion dv : dvs)
+		{
+			if (name != null && description != null && inverseName != null)
+			{
+				break;
+			}
+			else
+			{
+				int typeNid = Frills.getDescriptionType(dv, myStampCoord);
+				if (typeNid == MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
+				{
+					if (Frills.isDescriptionPreferred(dv.getNid(), myStampCoord))
+					{
+						name = dv.getText();
 					}
 					else
+					// see if it is the inverse name
 					{
-						LatestVersion<DescriptionVersion> dv = descriptionC.getLatestVersion(myStampCoord);
-						Util.logContradictions(log, dv);
-						// TODO handle contradictions
-						if (dv.isPresent())
+						if (Frills.isDescriptionInverse(dv.getChronology(), myStampCoord, true))
 						{
-							if (dv.get().getDescriptionTypeConceptNid() == MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
+							inverseName = dv.getText();
+						}
+						else 
+						{
+							//not preferred, not inverse, keep it as a backup in case we don't find something better.
+							if (aName == null)
 							{
-								if (Frills.isDescriptionPreferred(dv.get().getNid(), myStampCoord))
-								{
-									name = dv.get().getText();
-								}
-								else
-								// see if it is the inverse name
-								{
-									if (Get.assemblageService().getSemanticChronologyStreamForComponentFromAssemblage(dv.get().getNid(),
-											DynamicConstants.get().DYNAMIC_ASSOCIATION_INVERSE_NAME.getNid()).anyMatch(semanticC -> {
-												return dv.get().getChronology().isLatestVersionActive(myStampCoord);
-											}))
-									{
-										inverseName = dv.get().getText();
-									}
-								}
-							}
-							else if (dv.get().getDescriptionTypeConceptNid() == MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getNid())
-							{
-								if (Frills.isDescriptionPreferred(dv.get().getNid(), myStampCoord))
-								{
-									description = dv.get().getText();
-								}
+								aName = dv.getText();
 							}
 						}
 					}
-				});
+				}
+				else if (typeNid == MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getNid())
+				{
+					if (Frills.isDescriptionPreferred(dv.getNid(), myStampCoord))
+					{
+						description = dv.getText();
+					}
+					else
+					{
+						if (aDefinition == null)
+						{
+							aDefinition = dv.getText();
+						}
+					}
+				}
+			}
+		}
 
+		if (name == null && aName != null)
+		{
+			name = aName;
+		}
+		
+		if (description == null && aDefinition != null)
+		{
+			description = aDefinition;
+		}
+		
 		displayFields.addAll(MappingAPIs.getMappingSetDisplayFieldsFromMappingSet(mappingConcept.getNid(), stampCoord));
 
 		// figure out the terminology info

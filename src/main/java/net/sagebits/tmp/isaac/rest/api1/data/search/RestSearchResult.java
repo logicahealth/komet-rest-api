@@ -50,6 +50,7 @@ import net.sagebits.tmp.isaac.rest.session.RequestParameters;
 import sh.isaac.api.Get;
 import sh.isaac.api.Status;
 import sh.isaac.api.chronicle.Chronology;
+import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.utility.Frills;
 
 /**
@@ -170,7 +171,11 @@ public class RestSearchResult
 			{
 				referencedConcept = new RestConceptChronology(Get.conceptService().getConceptChronology(conceptNid),
 						RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-						RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true, null); // TODO possibly handle processId
+						RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), 
+						RequestInfo.get().shouldExpand(ExpandUtil.includeParents),
+						RequestInfo.get().shouldExpand(ExpandUtil.countParents),
+						true, null, null, 
+						RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED); // TODO possibly handle processId
 				if (RequestInfo.get().returnExpandableLinks())
 				{
 					if (!RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable))

@@ -177,6 +177,9 @@ public class SemanticAPIs
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained
 	 *            by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @return the semantic chronology object
 	 * @throws RestException
@@ -185,12 +188,13 @@ public class SemanticAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.chronologyComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticChronology getSemanticChronology(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		RestSemanticChronology chronology = new RestSemanticChronology(findSemanticChronology(id),
 				RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable), RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable),
@@ -216,6 +220,9 @@ public class SemanticAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @throws RestException
 	 */
@@ -223,12 +230,13 @@ public class SemanticAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.versionComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticVersion getSemanticVersion(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 
@@ -301,6 +309,9 @@ public class SemanticAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken
 	 *            may be obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @return the semantic version objects. Note that the returned type here - RestSemanticVersion is actually an abstract base class,
 	 *         the actual return type will be either a RestDynamicSemanticVersion or a RestSemanticDescriptionVersion.
@@ -313,12 +324,13 @@ public class SemanticAPIs
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		HashSet<Integer> singleAllowedAssemblage = new HashSet<>();
 		singleAllowedAssemblage.add(RequestInfoUtils.getConceptNidFromParameter(RequestParameters.id, id));
@@ -365,7 +377,10 @@ public class SemanticAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
-	 * 
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
+	 *     
 	 * @return the semantic version objects. Note that the returned type here - RestSemanticVersion is actually an abstract base class,
 	 *         the actual return type will be either a RestDynamicSemanticVersion or a RestSemanticDescriptionVersion.
 	 * @throws RestException
@@ -378,13 +393,14 @@ public class SemanticAPIs
 			@QueryParam(RequestParameters.includeDescriptions) @DefaultValue("false") String includeDescriptions,
 			@QueryParam(RequestParameters.includeAssociations) @DefaultValue("false") String includeAssociations,
 			@QueryParam(RequestParameters.includeMappings) @DefaultValue("false") String includeMappings, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.assemblage,
 				RequestParameters.includeDescriptions, RequestParameters.includeAssociations, RequestParameters.includeMappings, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		HashSet<Integer> allowedAssemblages = new HashSet<>();
 		for (String a : assemblage)

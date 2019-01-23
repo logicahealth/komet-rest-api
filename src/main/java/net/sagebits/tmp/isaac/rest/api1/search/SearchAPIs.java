@@ -119,21 +119,29 @@ public class SearchAPIs
 	 * @param pageNum The pagination page number >= 1 to return
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param expand Optional Comma separated list of fields to expand or include directly in the results. Supports:
-	 *            - 'uuid' (return the UUID of the matched semantic, rather than just the nid)
-	 *            - 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
+	 *            <br> 'uuid' (return the UUID of the matched semantic, rather than just the nid)
+	 *            <br> 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
 	 *            of the matched semantic. In most cases, this concept will be the concept that directly contains the semantic - but in some cases,
 	 *            semantics may be nested under other semantics causing this to walk up until it finds a concept)
-	 *            - 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
+	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
-	 *            - 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
+	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
 	 *            the referencedConcept.
+	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
+	 *            cause the expanded version to also have the parent count populated.
+	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
+	 *            will cause the expanded version to also have the first-level parent list populated.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
-	 * 
-	 *            The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
+	 * <br>
+	 * <br>       The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
 	 *            'path' parameters to restrict the search to matching items. 'modules' are also evaluated recursively, so you can pass the identifier
 	 *            for the VHAT_MODULES module (which also happens to be a /system/terminologyTypes value - all "terminologyType" constants work here)
 	 *            to restrict a search to a particular terminology or even a particular version of a terminology.
+	 *            
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @return the list of descriptions that matched, along with their score. Note that the textual value may _NOT_ be included,
 	 *         if the description that matched is not active on the default path.
@@ -147,13 +155,14 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.extendedDescriptionTypes) Set<String> extendedDescriptionTypes,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.descriptionTypes, RequestParameters.extendedDescriptionTypes, RequestParameters.PAGINATION_PARAM_NAMES,
-				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		if (StringUtils.isBlank(query))
 		{
@@ -189,31 +198,39 @@ public class SearchAPIs
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param restrictTo Optional a feature that will restrict the results descriptions attached to a concept that meet one of the specified
 	 *            criteria. Currently, this can be set to
-	 *            - "association" - to only return concepts that define association types
-	 *            - "mapset" - to only return concepts that define mapsets
-	 *            - "semantic" - to only return concepts that define semantics
-	 *            - "metadata" - to only return concepts that are defined in the metadata hierarchy.
-	 *            This option can only be set to a single value per call - no combinations are allowed.
+	 *            <br> "association" - to only return concepts that define association types
+	 *            <br> "mapset" - to only return concepts that define mapsets
+	 *            <br> "semantic" - to only return concepts that define semantics
+	 *            <br> "metadata" - to only return concepts that are defined in the metadata hierarchy.
+	 *            <br>This option can only be set to a single value per call - no combinations are allowed.
 	 * @param mergeOnConcept - Optional - if set to true - only one result will be returned per concept - even if that concept had 2 or more
 	 *            descriptions that matched the query. When false, you will get a search result for EACH matching description. When true, you will
 	 *            only get one search result, which is the search result with the best score for that concept (compared to the other search results
 	 *            for that concept)
 	 * @param expand Optional Comma separated list of fields to expand or include directly in the results. Supports:
-	 *            - 'uuid' (return the UUID of the matched semantic, rather than just the nid)
-	 *            - 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
+	 *            <br> 'uuid' (return the UUID of the matched semantic, rather than just the nid)
+	 *            <br> 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
 	 *            of the matched semantic. In most cases, this concept will be the concept that directly contains the semantic - but in some cases,
 	 *            semantics may be nested under other semantics causing this to walk up until it finds a concept)
-	 *            - 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
+	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
-	 *            - 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
+	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
 	 *            the referencedConcept.
+	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
+	 *            cause the expanded version to also have the parent count populated.
+	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
+	 *            will cause the expanded version to also have the first-level parent list populated.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
-	 * 
-	 *            The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
+	 * <br>
+	 *            <br>The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
 	 *            'path' parameters to restrict the search to matching items. 'modules' are also evaluated recursively, so you can pass the identifier
 	 *            for the VHAT_MODULES module (which also happens to be a /system/terminologyTypes value - all "terminologyType" constants work here)
 	 *            to restrict a search to a particular terminology or even a particular version of a terminology.
+	 *            
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 *
 	 * @return the list of descriptions that matched, along with their score. Note that the textual value may _NOT_ be included,
 	 *         if the description that matched is not active on the default path.
@@ -226,13 +243,14 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
 			@QueryParam(RequestParameters.restrictTo) String restrictTo, @QueryParam(RequestParameters.mergeOnConcept) String mergeOnConcept,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.restrictTo, RequestParameters.mergeOnConcept, RequestParameters.expand,
-				RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		if (StringUtils.isBlank(query))
 		{
@@ -426,8 +444,8 @@ public class SearchAPIs
 
 	/**
 	 * @param query The query to be evaluated. If the query is numeric (int, float, long, double) , it will be treated as a numeric search.
-	 *            If the query is a mathematical interval - [4,6] or (5,10] or [4,] it will be handled as a numeric interval.
-	 *            If the query is not numeric, and is not a valid interval, it will be treated as a string and parsed by the Lucene Query Parser:
+	 *            <br>If the query is a mathematical interval - [4,6] or (5,10] or [4,] it will be handled as a numeric interval.
+	 *            <br>If the query is not numeric, and is not a valid interval, it will be treated as a string and parsed by the Lucene Query Parser:
 	 *            http://lucene.apache.org/core/5_3_1/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#Overview
 	 * @param treatAsString Treat the query as a string search, even if it is parseable as a number. This is useful because
 	 *            'id' type semantics in the data model are always represented as a string, even if they are numeric.
@@ -437,35 +455,36 @@ public class SearchAPIs
 	 * @param dynamicSemanticColumns (optional) limit the search to the specified columns of attached data. May ONLY be provided if
 	 *            ONE and only one semanticAssemblageNid is provided. May not be provided if 0 or more than 1 semanticAssemblageNid values
 	 *            are provided.
-	 *            This parameter can be passed multiple times to pass multiple column references. This should be a 0 indexed column number - such as
+	 *            <br>This parameter can be passed multiple times to pass multiple column references. This should be a 0 indexed column number - such as
 	 *            0 or 4. Information about the columns for a particular semantic (and their index numbers) can be found via the
 	 *            semantic/semantic/semanticDefinition/{id} call. It only makes sense to pass this parameter when searching within a specific semantic
-	 *            that
-	 *            has multiple columns of data.
+	 *            that has multiple columns of data.
 	 * @param pageNum The pagination page number >= 1 to return
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param expand Optional Comma separated list of fields to expand or include directly in the results. Supports:
-	 *            - 'uuid' (return the UUID of the matched semantic, rather than just the nid)
-	 *            - 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
+	 *            <br> 'uuid' (return the UUID of the matched semantic, rather than just the nid)
+	 *            <br> 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
 	 *            of the matched semantic. In most cases, this concept will be the concept that directly contains the semantic - but in some cases,
 	 *            semantics may be nested under other semantics causing this to walk up until it finds a concept)
-	 *            - 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
-	 *            the
-	 *            latest version of the referenced concept chronology.
-	 *            - 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
-	 *            the
-	 *            referencedConcept.
+	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
+	 *            the latest version of the referenced concept chronology.
+	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
+	 *            the referencedConcept.
+	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
+	 *            cause the expanded version to also have the parent count populated.
+	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
+	 *            will cause the expanded version to also have the first-level parent list populated.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
-	 *            obtained
-	 *            by a separate (prior) call to getCoordinatesToken().
-	 *
-	 *            The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
-	 *            'path' parameters
-	 *            to restrict the search to matching items. 'modules' are also evaluated recursively, so you can pass the identifier for the
-	 *            VHAT_MODULES module
-	 *            (which also happens to be a /system/terminologyTypes value - all "terminologyType" constants work here) to restrict a search to a
-	 *            particular terminology
-	 *            or even a particular version of a terminology.
+	 *            obtained by a separate (prior) call to getCoordinatesToken().
+	 *<br>
+	 *            <br>The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
+	 *            'path' parameters to restrict the search to matching items. 'modules' are also evaluated recursively, so you can pass the identifier 
+	 *            for the VHAT_MODULES module (which also happens to be a /system/terminologyTypes value - all "terminologyType" constants work here) to 
+	 *            restrict a search to a particular terminology or even a particular version of a terminology.
+	 *            
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 *
 	 * @return the list of semantics that matched, along with their score. Note that the textual value may _NOT_ be included,
 	 *         if the semantic that matched is not active on the default path.
@@ -480,13 +499,14 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.dynamicSemanticColumns) Set<Integer> dynamicSemanticColumns,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.treatAsString, RequestParameters.semanticAssemblageId, RequestParameters.dynamicSemanticColumns,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		String restPath = RestPaths.searchAppPathComponent + RestPaths.semanticsComponent + "?" + RequestParameters.query + "=" + query + "&"
 				+ RequestParameters.treatAsString + "=" + treatAsString;
@@ -583,7 +603,7 @@ public class SearchAPIs
 	 *            semantic triplet - (semanticID / Assemblage ID / Referenced Component Id) - those lookups are handled by the
 	 *            semantic/byReferencedComponent/{id} API or semantic/byAssemblage/{id} API. This search locates semantic instances that have a DATA
 	 *            COLUMN that make reference to a semantic, such as a ComponentNidSemantic, or a Logic Graph.
-	 *            An example usage of this API would be to locate the concept that contains a graph that references another concept. The input value
+	 *            <br>An example usage of this API would be to locate the concept that contains a graph that references another concept. The input value
 	 *            must be a nid, UUIDs are not supported for this operation.
 	 * @param semanticAssemblageId (optional) restrict the search to only match on members of the provided semantic assemblage identifier(s).
 	 *            This should be the identifier of a concept that defines a semantic. This parameter can be passed multiple times to pass
@@ -593,28 +613,36 @@ public class SearchAPIs
 	 * @param dynamicSemanticColumns (optional) limit the search to the specified columns of attached data. May ONLY be provided if
 	 *            ONE and only one semanticAssemblageNid is provided. May not be provided if 0 or more than 1 semanticAssemblageNid values
 	 *            are provided.
-	 *            This parameter can be passed multiple times to pass multiple column references. This should be a 0 indexed column number - such as
+	 *            <br>This parameter can be passed multiple times to pass multiple column references. This should be a 0 indexed column number - such as
 	 *            0 or 4. Information about the columns for a particular semantic (and their index numbers) can be found via the
 	 *            semantic/semantic/semanticDefinition/{id} call. It only makes sense to pass this parameter when searching within a specific semantic
 	 *            that has multiple columns of data.
 	 * @param pageNum The pagination page number >= 1 to return
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param expand Optional Comma separated list of fields to expand or include directly in the results. Supports:
-	 *            - 'uuid' (return the UUID of the matched semantic, rather than just the nid)
-	 *            - 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
+	 *            <br> 'uuid' (return the UUID of the matched semantic, rather than just the nid)
+	 *            <br> 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
 	 *            of the matched semantic. In most cases, this concept will be the concept that directly contains the semantic - but in some cases,
 	 *            semantics may be nested under other semantics causing this to walk up until it finds a concept)
-	 *            - 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
+	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
-	 *            - 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
+	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
 	 *            the referencedConcept.
+	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
+	 *            cause the expanded version to also have the parent count populated.
+	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
+	 *            will cause the expanded version to also have the first-level parent list populated.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
-	 * 
-	 *            The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
+	 * <br>
+	 *            <br>The search specifically takes into account the 'modules' and 'path' components of the coordToken (or of individual 'modules' or
 	 *            'path' parameters to restrict the search to matching items. 'modules' are also evaluated recursively, so you can pass the identifier
 	 *            for the VHAT_MODULES module (which also happens to be a /system/terminologyTypes value - all "terminologyType" constants work here)
 	 *            to restrict a search to a particular terminology or even a particular version of a terminology.
+	 *            
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @return the list of semantics that matched, along with their score. Note that the textual value may _NOT_ be included,
 	 *         if the semantic that matched is not active on the default path.
@@ -628,13 +656,14 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.dynamicSemanticColumns) Set<Integer> dynamicSemanticColumns,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.nid,
 				RequestParameters.semanticAssemblageId, RequestParameters.dynamicSemanticColumns, RequestParameters.PAGINATION_PARAM_NAMES,
-				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		String restPath = RestPaths.searchAppPathComponent + RestPaths.forReferencedComponentComponent + "?" + RequestParameters.nid + "=" + nid;
 		if (semanticAssemblageId != null)
@@ -668,16 +697,24 @@ public class SearchAPIs
 	 * @param pageNum The pagination page number >= 1 to return
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param expand Optional Comma separated list of fields to expand or include directly in the results. Supports:
-	 *            - 'uuid' (return the UUID of the matched semantic, rather than just the nid)
-	 *            - 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
+	 *            <br> 'uuid' (return the UUID of the matched semantic, rather than just the nid)
+	 *            <br> 'referencedConcept' (return the conceptChronology of the nearest concept found by following the referencedComponent references
 	 *            of the matched semantic. In most cases, this concept will be the concept that directly contains the semantic - but in some cases,
 	 *            semantics may be nested under other semantics causing this to walk up until it finds a concept)
-	 *            - 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
+	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
-	 *            - 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
+	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
 	 *            the referencedConcept.
+	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
+	 *            cause the expanded version to also have the parent count populated.
+	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
+	 *            will cause the expanded version to also have the first-level parent list populated.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
+	 *            
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @return - the list of items that were found that matched - note that if the passed in UUID matched on a semantic - the returned top level
 	 *         object will be the concept that references the semantic with the hit. Scores are irrelevant with this call, you will either have an
@@ -690,12 +727,13 @@ public class SearchAPIs
 	public RestSearchResultPage idSearch(@QueryParam(RequestParameters.query) String query,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		List<SearchResult> results = new ArrayList<>();
 		final String restPath = RestPaths.searchAppPathComponent + RestPaths.idComponent + "?" + RequestParameters.query + "=" + query;

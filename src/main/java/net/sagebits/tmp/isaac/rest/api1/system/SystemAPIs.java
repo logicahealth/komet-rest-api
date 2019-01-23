@@ -120,7 +120,9 @@ public class SystemAPIs
 	 * @param processId 
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken
 	 *            may be obtained by a separate (prior) call to getCoordinatesToken().
-	 * 
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the found object
 	 * @throws RestException
 	 */
@@ -128,12 +130,13 @@ public class SystemAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.identifiedObjectsComponent + "{" + RequestParameters.id + "}")
 	public RestIdentifiedObjectsResult getIdentifiedObjects(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		RestConceptChronology concept = null;
 		RestSemanticChronology semantic = null;
@@ -521,7 +524,7 @@ public class SystemAPIs
 							Get.configurationService().getGlobalDatastoreConfiguration().getDefaultLogicCoordinate()));
 
 			// TODO there is a bug here - the addChildren reads coords from the RequestInfo, if they pass in weird coords, it will mess up this call.
-			TaxonomyAPIs.addChildren(MetaData.MODULE____SOLOR.getNid(), rcv, tss, true, false, 3, false, false, new NidSet(), null, 1, 500);
+			TaxonomyAPIs.addChildren(MetaData.MODULE____SOLOR.getNid(), rcv, tss, true, false, false, 3, false, false, new NidSet(), null, 1, 500);
 
 			if (availableOnly == null || Boolean.parseBoolean(availableOnly))
 			{
@@ -579,6 +582,7 @@ public class SystemAPIs
 		Frills.getAllChildrenOfConcept(MetaData.DESCRIPTION_TYPE_IN_SOURCE_TERMINOLOGY____SOLOR.getNid(), true, true, RequestInfo.get().getStampCoordinate())
 				.forEach(descType -> {
 					ConceptChronology concept = Get.conceptService().getConceptChronology(descType);
+					//TODO I think this MOdule_solor should have changed to the metadata module, but not sure.  need to figure out why I added the test.
 					if (cc.getNid() != MetaData.MODULE____SOLOR.getNid() && Frills.getTerminologyTypes(concept, null).contains(cc.getNid()))
 					{
 						results.add(new RestConceptChronology(concept, false, false, false, null));
@@ -698,6 +702,102 @@ public class SystemAPIs
 	}
 	
 	/**
+	 * Return the (sorted) core description types and external description types that are allowable loaded into the system.
+	 * 
+	 * These are returned as a two level hierarchy.  At the top level, we will return the three system core types.
+	 * The children variable of the returned {@link RestConceptVersion} object will contain the external types that
+	 * are linked the the parent core type.  The three core types are {@link MetaData#REGULAR_NAME_DESCRIPTION_TYPE____SOLOR}, 
+	 * {@link MetaData#FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR} and {@link MetaData#DEFINITION_DESCRIPTION_TYPE____SOLOR}
+	 * 
+	 * If this returns only the three top level items, with no children, then only core types are loaded.
+	 * 
+	 * @return the external description types loaded in they system, in a structure that organizes them under the core type
+	 *            that the external type is linked to. 
+	 * @throws RestException  in any supplied parameters are invalid
+	 */
+	@GET
+	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
+	@Path(RestPaths.descriptionTypes)
+	public RestConceptVersion[] getAllDescriptionTypes() throws RestException
+	{
+		SecurityUtils.validateRole(securityContext, getClass());
+
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
+
+		TreeSet<RestConceptVersion> fqns = new TreeSet<>();
+		TreeSet<RestConceptVersion> regName = new TreeSet<>();
+		TreeSet<RestConceptVersion> definition = new TreeSet<>();
+
+		//Look up the description types that have a module of the requested type
+		Frills.getAllChildrenOfConcept(MetaData.DESCRIPTION_TYPE____SOLOR.getNid(), true, true, RequestInfo.get().getStampCoordinate())
+				.forEach(descType -> {
+					ConceptChronology cc = Get.conceptService().getConceptChronology(descType);
+					NidSet typeInfo = Get.assemblageService().getSemanticNidsForComponentFromAssemblage(cc.getNid(), 
+							MetaData.DESCRIPTION_CORE_TYPE____SOLOR.getNid());
+					if (typeInfo.size() == 0)
+					{
+						//should be a core type
+						if (descType != MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getNid() 
+								&& descType != MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid()
+								&& descType != MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getNid())
+						{
+							log.warn("Unexpected core description type {}", cc);
+						}
+					}
+					else if (typeInfo.size() > 1)
+					{
+						log.error("There should be one and only one Description Core Type on a external description type.  Found {} on {}", typeInfo.size(), cc);
+					}
+					else
+					{
+						DynamicVersion<?> dv = (DynamicVersion<?>)Get.assemblageService()
+								.getSemanticChronology(typeInfo.findFirst().getAsInt()).getLatestVersion(RequestInfo.get().getStampCoordinate()).get();
+						DynamicUUID type = (DynamicUUID)dv.getData(0);
+						
+						RestConceptVersion rcv = new RestConceptVersion((ConceptVersion)cc
+								.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+						rcv.setChildCount(0);
+						if (MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getUuidList().contains(type.getDataUUID()))
+						{
+							fqns.add(rcv);
+						}
+						else if (MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getUuidList().contains(type.getDataUUID()))
+						{
+							regName.add(rcv);
+						}
+						else if (MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getUuidList().contains(type.getDataUUID()))
+						{
+							definition.add(rcv);
+						}
+						else
+						{
+							log.error("Unexpected core type linkage of {} on {}", type.getDataUUID(), cc);
+						}
+					}
+				});
+
+		RestConceptVersion[] finalResult = new RestConceptVersion[3];
+		finalResult[0] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+		finalResult[0].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, fqns.size(), true, false, "", fqns.toArray(new RestConceptVersion[fqns.size()]));
+		finalResult[0].setChildCount(fqns.size());
+		
+		finalResult[1] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+		finalResult[1].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, regName.size(), true, false, "", 
+				regName.toArray(new RestConceptVersion[regName.size()]));
+		finalResult[1].setChildCount(regName.size());
+		
+		finalResult[2] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getNid())
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+		finalResult[2].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, definition.size(), true, false, "", 
+				definition.toArray(new RestConceptVersion[definition.size()]));
+		finalResult[2].setChildCount(definition.size());
+
+		return finalResult;
+	}
+	
+	/**
 	 * Return the {@link RestDescriptionStyle} that is utilized by a particular terminology.
 	 * 
 	 * @param id - a nid or UUID of a concept that represents a terminology in the system. This should be a direct child of
@@ -765,6 +865,7 @@ public class SystemAPIs
 		if (Frills.getAllChildrenOfConcept(MetaData.DESCRIPTION_TYPE_IN_SOURCE_TERMINOLOGY____SOLOR.getNid(), true, true, RequestInfo.get().getStampCoordinate())
 		.stream().filter(descType -> {
 			ConceptChronology concept = Get.conceptService().getConceptChronology(descType);
+			//TODO I think this MOdule_solor should have changed to the metadata module, but not sure.  need to figure out why I added the test.
 			if (termType.getNid() != MetaData.MODULE____SOLOR.getNid() && Frills.getTerminologyTypes(concept, null).contains(termType.getNid()))
 			{
 				return true;

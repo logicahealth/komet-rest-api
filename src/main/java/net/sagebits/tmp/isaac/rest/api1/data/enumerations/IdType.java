@@ -31,21 +31,38 @@ package net.sagebits.tmp.isaac.rest.api1.data.enumerations;
 
 import java.util.Optional;
 import org.apache.commons.lang3.StringUtils;
+import sh.isaac.MetaData;
 
 public enum IdType
 {
-	UUID("uuid"), NID("nid"), SCTID("sctid"), VUID("vuid");
+	UUID("uuid", MetaData.UUID____SOLOR.getNid()), NID("nid"), SCTID("sctid", MetaData.SCTID____SOLOR.getNid()), VUID("vuid", MetaData.VUID____SOLOR.getNid());
 
 	private String displayName_;
+	private int id_;
 
 	private IdType(String displayName)
 	{
 		displayName_ = displayName;
+		id_ = this.ordinal();
+	}
+	
+	private IdType(String displayName, int id)
+	{
+		displayName_ = displayName;
+		id_ = id;
 	}
 
 	public String getDisplayName()
 	{
 		return displayName_;
+	}
+	
+	/**
+	 * @return the id, if provided, or the ordinal, otherwise.
+	 */
+	public int getId()
+	{
+		return id_;
 	}
 
 	public static Optional<IdType> parse(String input)

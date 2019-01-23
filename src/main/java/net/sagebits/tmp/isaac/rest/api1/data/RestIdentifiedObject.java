@@ -32,16 +32,19 @@ package net.sagebits.tmp.isaac.rest.api1.data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
+import org.apache.logging.log4j.LogManager;
 import org.apache.mahout.math.Arrays;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
+import net.sagebits.tmp.isaac.rest.api1.data.enumerations.IdType;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestObjectChronologyType;
+import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestSupportedIdType;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.Chronology;
@@ -49,6 +52,8 @@ import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.semantic.SemanticChronology;
 import sh.isaac.api.component.semantic.version.DescriptionVersion;
+import sh.isaac.api.component.semantic.version.StringVersion;
+import sh.isaac.api.coordinate.StampCoordinate;
 import sh.isaac.api.externalizable.IsaacObjectType;
 
 /**
@@ -96,6 +101,13 @@ public class RestIdentifiedObject
 	 */
 	@XmlElement
 	public RestObjectChronologyType type;
+	
+	/**
+	 * A field that is optional populated on by API calls that support an option of returning alternate IDs, when requested by the user.
+	 * This may return items of types specified by /rest/id/types.
+	 */
+	@XmlElement
+	public List<RestId> altIDs;
 
 	RestIdentifiedObject()
 	{
@@ -107,6 +119,7 @@ public class RestIdentifiedObject
 		uuids.addAll(semantic.getUuidList());
 		nid = semantic.getNid();
 		type = new RestObjectChronologyType(IsaacObjectType.SEMANTIC);
+		populateAltIds();
 	}
 
 	public RestIdentifiedObject(ConceptChronology concept)
@@ -118,6 +131,7 @@ public class RestIdentifiedObject
 		{
 			description = Get.conceptDescriptionText(nid);
 		}
+		populateAltIds();
 	}
 
 	public RestIdentifiedObject(UUID uuid)
@@ -142,6 +156,7 @@ public class RestIdentifiedObject
 			uuids.add(uuid);
 			type = new RestObjectChronologyType(IsaacObjectType.UNKNOWN);
 		}
+		populateAltIds();
 	}
 
 	public RestIdentifiedObject(UUID uuid, IsaacObjectType type)
@@ -173,6 +188,7 @@ public class RestIdentifiedObject
 					throw new RuntimeException("Unexpected case");
 			}
 			uuids.addAll(Get.identifierService().getUuidsForNid(nid));
+			populateAltIds();
 		}
 	}
 
@@ -192,6 +208,7 @@ public class RestIdentifiedObject
 			{
 				description = Get.conceptDescriptionText(nid);
 			}
+			populateAltIds();
 		}
 		else
 		{
@@ -219,6 +236,7 @@ public class RestIdentifiedObject
 			default :
 				throw new RuntimeException("Unexpected case");
 		}
+		populateAltIds();
 	}
 
 	public RestIdentifiedObject(int id, IsaacObjectType type)
@@ -241,6 +259,7 @@ public class RestIdentifiedObject
 				throw new RuntimeException("Unexpected case");
 		}
 		uuids.addAll(Get.identifierService().getUuidsForNid(nid));
+		populateAltIds();
 	}
 
 	public RestIdentifiedObject(int id)
@@ -256,12 +275,48 @@ public class RestIdentifiedObject
 				description = Get.conceptDescriptionText(nid);
 			}
 		}
+		else
+		{
+			LogManager.getLogger().warn("Dan wants to know why this would happen...");
+		}
 	}
 
-	@XmlTransient
 	public UUID getFirst()
 	{
 		return uuids.get(0);
+	}
+	
+	private void populateAltIds()
+	{
+		if (nid == null)
+		{
+			return;
+		}
+		StampCoordinate sc = RequestInfo.get().getStampCoordinate();
+		ArrayList<RestId> result = new ArrayList<>();
+		for (RestSupportedIdType rsit : RequestInfo.get().getRequestedAdditionalIds())
+		{
+			if (rsit.enumName.equals(IdType.NID.name()) || rsit.enumName.equals(IdType.UUID.name()))
+			{
+				//Ignore these, they will already be populated in this class.
+			}
+			else
+			{
+				//All other types would come from attached identifier semantics.
+				Optional<SemanticChronology> item = Get.assemblageService().getSemanticChronologyStreamForComponentFromAssemblage(nid, rsit.enumId).findAny();
+				if (item.isPresent())
+				{
+					item.get().getLatestVersion(sc).ifPresent(cv -> 
+					{
+						result.add(new RestId(rsit, ((StringVersion)cv).getString()));
+					});
+				}
+			}
+		}
+		if (result.size() > 0)
+		{
+			altIDs = result;
+		}
 	}
 
 	/**
@@ -339,6 +394,7 @@ public class RestIdentifiedObject
 	@Override
 	public String toString()
 	{
-		return "RestIdentifiedObject [type=" + type + ", nid=" + nid + ", uuids=" + (uuids != null ? Arrays.toString(uuids.toArray()) : null) + "]";
+		return "RestIdentifiedObject [type=" + type + ", nid=" + nid + ", uuids=" + (uuids != null ? Arrays.toString(uuids.toArray()) : null) + "]"
+				+ ", altIds=" + (altIDs != null ? Arrays.toString(altIDs.toArray()) : null) + "]";
 	}
 }

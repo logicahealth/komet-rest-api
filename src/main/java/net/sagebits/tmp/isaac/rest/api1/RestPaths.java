@@ -71,6 +71,7 @@ public class RestPaths
 	public static final String extendedDescriptionTypes = "extendedDescriptionTypes/";
 	public static final String externalDescriptionTypes = "externalDescriptionTypes/";
 	public static final String descriptionStyle = "descriptionStyle/";
+	public static final String descriptionTypes = "descriptionTypes/";
 
 	// Workflow Based Calls
 	public static final String workflowAPIsPathComponent = apiVersionComponent + "workflow/";
@@ -158,6 +159,7 @@ public class RestPaths
 
 	public static final String systemAPIsPathComponent = apiVersionComponent + "system/";
 	public static final String systemAPIsRebuildIndexComponent = "rebuildIndex/";
+	public static final String systemAPIsClearClassifierData = "clearClassifierData/";
 	public static final String commentAPIsPathComponent = apiVersionComponent + "comment/";
 	public static final String contentRequestAPIsPathComponent = apiVersionComponent + "request/";
 	public static final String exportAPIsPathComponent = apiVersionComponent + "export/";
@@ -176,6 +178,12 @@ public class RestPaths
 	public static final String logicGraphAPIsPathComponent = apiVersionComponent + logicGraphComponent;
 	public static final String logicGraphVersionAppPathComponent = appPathComponent + logicGraphAPIsPathComponent + versionComponent;
 	public static final String logicGraphChronologyAppPathComponent = appPathComponent + logicGraphAPIsPathComponent + chronologyComponent;
+	
+	public static final String classifierComponent = "classifier/";
+	public static final String classifierAPIsPathComponent = apiVersionComponent + classifierComponent;
+	public static final String classify = "classify/";
+	public static final String classification = "classification/";
+	public static final String classifications = "classifications/";
 	
 	public static final String validationAPIsPathComponent = apiVersionComponent + "validation/";
 	public static final String findFQN = "findFQN/";

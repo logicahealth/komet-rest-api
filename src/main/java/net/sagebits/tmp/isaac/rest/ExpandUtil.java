@@ -50,4 +50,6 @@ public class ExpandUtil
 	public static final String source = "source";
 	public static final String target = "target";
 	public static final String countParents = "countParents";
+	public static final String includeParents = "includeParents";
+	public static final String terminologyType = "terminologyType";
 }

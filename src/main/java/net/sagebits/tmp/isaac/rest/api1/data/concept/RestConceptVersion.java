@@ -338,7 +338,7 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 			{
 				try
 				{
-					TaxonomyAPIs.addChildren(cv.getChronology().getNid(), this, tree, countChildren, countParents, 0, includeSemanticMembership,
+					TaxonomyAPIs.addChildren(cv.getChronology().getNid(), this, tree, countChildren, includeParents, countParents, 0, includeSemanticMembership,
 							includeTerminologyType, new NidSet(), processId, TaxonomyAPIs.PAGE_NUM_DEFAULT, TaxonomyAPIs.MAX_PAGE_SIZE_DEFAULT);
 				}
 				catch (RestException e)

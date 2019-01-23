@@ -64,10 +64,21 @@ public class RestId
 		this.value = value;
 		this.idType = new RestSupportedIdType(type);
 	}
+	
+	public RestId(RestSupportedIdType type, String value)
+	{
+		this.value = value;
+		this.idType = type;
+	}
 
 	protected RestId()
 	{
 		// For jaxb
 	}
 
+	@Override
+	public String toString()
+	{
+		return idType + ": " + value;
+	}
 }

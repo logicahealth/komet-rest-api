@@ -39,7 +39,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.PostConstruct;
 import javax.inject.Singleton;
@@ -130,7 +129,7 @@ public class UserProvider implements UserService
 		if (!Get.identifierService().hasUuid(user.getId()))
 		{
 			// This creates the user concept in our DB
-			authorNid = getAuthorNid(user.getName());
+			authorNid = getAuthorNid(user);
 		}
 		else
 		{
@@ -166,12 +165,12 @@ public class UserProvider implements UserService
 	/**
 	 * Get the concept nid that corresponds to a given editors user name - constructing the concept if necessary.
 	 * 
-	 * @param ssoProvidedUserName
+	 * @param user
 	 * @return the nid of the author
 	 */
-	public static int getAuthorNid(String ssoProvidedUserName)
+	public static int getAuthorNid(User user)
 	{
-		UUID userUUID = getUuidFromUserName(ssoProvidedUserName);
+		UUID userUUID = user.getId() == null ? getUuidFromUserName(user.getName()) : user.getId();
 
 		// If the SSO UUID already persisted
 		if (Get.identifierService().hasUuid(userUUID))
@@ -181,7 +180,7 @@ public class UserProvider implements UserService
 		}
 		else
 		{
-			log.debug("Creating new concept for user '" + ssoProvidedUserName + "'");
+			log.debug("Creating new concept for user '" + user + "'");
 			EditCoordinate adminEditCoordinate = EditCoordinates.getDefaultUserMetadata();
 			LanguageCoordinate languageCoordinate = LanguageCoordinates.getUsEnglishLanguageFullySpecifiedNameCoordinate();
 			LogicCoordinate logicCoordinate = LogicCoordinates.getStandardElProfile();
@@ -200,7 +199,7 @@ public class UserProvider implements UserService
 
 			LogicalExpression parentDef = defBuilder.build();
 
-			ConceptBuilder builder = conceptBuilderService.getDefaultConceptBuilder(ssoProvidedUserName, null, parentDef,
+			ConceptBuilder builder = conceptBuilderService.getDefaultConceptBuilder(user.getName(), null, parentDef,
 					MetaData.SOLOR_CONCEPT_ASSEMBLAGE____SOLOR.getAssemblageNid());
 
 			// Set new author concept UUID to SSO UUID
@@ -220,7 +219,7 @@ public class UserProvider implements UserService
 			try
 			{
 				CommitRecord commitRecord = Util.commitCheck(
-						Get.commitService().commit(adminEditCoordinate, "creating new concept: NID=" + newCon.getNid() + ", FQN=" + ssoProvidedUserName));
+						Get.commitService().commit(adminEditCoordinate, "creating new concept: NID=" + newCon.getNid() + ", FQN=" + user.getName()));
 				log.debug("commit {}", commitRecord);
 				return newCon.getNid();
 			}

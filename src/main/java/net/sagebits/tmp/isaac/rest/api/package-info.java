@@ -104,7 +104,10 @@
  * <p>
  * The server has the ability to return data to help understand the API in the form of "expandables". By default, expandables are on, when the server
  * is deployed in a debug environment. Expandables are disabled when deployed in a production environment. To override the default, and return
- * expandable metadata in a production environment, add this parameter to any call: <code>expandables=true</code>
+ * expandable metadata in a production environment, add this parameter to any call: <code>expandables=true</code>.  This primarily enables a feature in 
+ * in the API known as expandable links - for performance reasons, they are not calculated or included by default in production mode.
+ * These links are the urls that the end user could call back to get additional data that wasn't fetched in the first call.
+ * Enabling or disabling the expandable links has no impact on individual expand parameters that get passed to an individual call.
  * </p>
  *
  * <h2>Edits/Updates</h2>

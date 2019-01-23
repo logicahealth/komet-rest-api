@@ -81,23 +81,22 @@ public class ConceptAPIs
 	@Context
 	private SecurityContext securityContext;
 
-	// TODO this cache needs to be invalidated if they change
-	private Set<Integer> allDescriptionAssemblageTypes = null;
+	private static Set<Integer> allDescriptionAssemblageTypes = null;
 	
-	private Semaphore s = new Semaphore(1);
+	private static Semaphore s = new Semaphore(1);
 
 	/**
 	 * Returns a single version of a concept.
 	 * If no version parameter is specified, returns the latest version.
 	 * 
 	 * @param id - A UUID or nid
-	 * @param includeParents - Include the direct parent concepts of the requested concept in the response. Defaults to false.
+	 * @param includeParents - Include the direct parent concepts of the requested concept in the response. Defaults to false.  If True, and 
+	 *            includeChildren is also specified, then the 1st level parents of each child will also be returned. 
 	 * @param countParents - true to count the number of parents above this node. May be used with or without the includeParents parameter
 	 *            - it works independently. When used in combination with the parentHeight parameter, only the last level of items returned will
-	 *            return
-	 *            parent counts. This parameter also applies to the expanded children - if childDepth is requested, and countParents is set, this will
-	 *            return a count of parents of each child, which can be used to determine if a child has multiple parents. Defaults to false if not
-	 *            provided.
+	 *            return parent counts. This parameter also applies to the expanded children - if childDepth is requested, and countParents is set, 
+	 *            this will return a count of parents of each child, which can be used to determine if a child has multiple parents. Defaults to 
+	 *            false if not provided.
 	 * @param includeChildren - Include the direct child concepts of the request concept in the response. Defaults to false.
 	 * @param countChildren - true to count the number of children below this node. May be used with or without the includeChildren parameter
 	 *            - it works independently. When used in combination with the childDepth parameter, only the last level of items returned will return
@@ -121,6 +120,9 @@ public class ConceptAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 *
 	 * @return the concept version object
 	 * @throws RestException
@@ -135,11 +137,12 @@ public class ConceptAPIs
 			@QueryParam(RequestParameters.countChildren) @DefaultValue("false") String countChildren,
 			@QueryParam(RequestParameters.semanticMembership) @DefaultValue("false") String semanticMembership,
 			@QueryParam(RequestParameters.terminologyType) @DefaultValue("false") String terminologyType, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.includeParents,
 				RequestParameters.countParents, RequestParameters.includeChildren, RequestParameters.countChildren, RequestParameters.semanticMembership,
-				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 
@@ -173,6 +176,9 @@ public class ConceptAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the concept chronology object
 	 * @throws RestException
 	 */
@@ -181,10 +187,11 @@ public class ConceptAPIs
 	@Path(RestPaths.chronologyComponent + "{" + RequestParameters.id + "}")
 	public RestConceptChronology getConceptChronology(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.terminologyType) @DefaultValue("false") String terminologyType,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.terminologyType, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.terminologyType, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		ConceptChronology concept = findConceptChronology(id);
 
@@ -248,6 +255,9 @@ public class ConceptAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * 
 	 * @return The descriptions associated with the concept
 	 * @throws RestException
@@ -258,10 +268,12 @@ public class ConceptAPIs
 	public RestSemanticDescriptionVersion[] getDescriptions(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.includeAttributes) @DefaultValue(RequestParameters.includeAttributesDefault) String includeAttributes,
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id,
-				RequestParameters.includeAttributes, RequestParameters.processId, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.includeAttributes, RequestParameters.processId, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES
+				, RequestParameters.altId);
 
 		ArrayList<RestSemanticDescriptionVersion> result = new ArrayList<>();
 		RestSemanticVersion[] descriptions = SemanticAPIs.get(findConceptChronology(id).getNid() + "", getAllDescriptionTypes(), null, true,
@@ -303,5 +315,19 @@ public class ConceptAPIs
 			s.release();
 		}
 		return allDescriptionAssemblageTypes;
+	}
+	
+	public static void clearCache()
+	{
+		try
+		{
+			s.acquire();
+			allDescriptionAssemblageTypes = null;
+		}
+		catch (InterruptedException e)
+		{
+			//noop
+		}
+		s.release();
 	}
 }

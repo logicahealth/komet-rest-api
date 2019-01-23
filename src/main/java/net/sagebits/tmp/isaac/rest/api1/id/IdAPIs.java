@@ -33,6 +33,7 @@ package net.sagebits.tmp.isaac.rest.api1.id;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +72,7 @@ import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.semantic.SemanticChronology;
 import sh.isaac.api.component.semantic.version.SemanticVersion;
 import sh.isaac.api.coordinate.LanguageCoordinate;
+import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.api.util.NumericUtils;
 import sh.isaac.api.util.UUIDUtil;
 import sh.isaac.misc.security.SystemRoleConstants;
@@ -96,13 +98,13 @@ public class IdAPIs
 	 * Translate an ID from one type to another.
 	 * 
 	 * @param id The id to translate
-	 * @param inputType - should be one of the types from the supportedTypes call. You can pass the name or enumId of the
-	 *            returned RestIdType object. This will be something like [uuid, nid, sctid, vuid]
-	 *            If not specified, selects the type as follows.
-	 *            UUIDs - if it is a correctly formatted UUID.
-	 *            If negative - a nid. All other values are ambiguous, and the type must be input. An error will be thrown.
-	 * @param outputType - should be one of the types from the supportedTypes call. You can pass the name or enumId of the
-	 *            returned RestIdType object. Currently includes [uuid, nid, sctid, vuid].
+	 * @param inputType - optional - must be one of the types from the supportedTypes call. You can pass the name or enumId of the
+	 *            returned RestIdType object. This will be something like [uuid, nid, sctid, vuid] but may also be a nid (from the enumid)
+	 *            If inputType is not specified, selects the type as follows. <br>
+	 *            - UUIDs - if it is a correctly formatted UUID.<br>
+	 *            - If negative - a nid. All other values are ambiguous, and the type must be input. An error will be thrown.
+	 * @param outputType - optional - should be one of the types from the supportedTypes call. You can pass the name or enumId of the
+	 *            returned RestIdType object. Currently includes [uuid, nid, sctid, vuid] but may also be a nid (from the enumid)
 	 *            Defaults to uuid.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
@@ -123,33 +125,25 @@ public class IdAPIs
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.inputType,
 				RequestParameters.outputType, RequestParameters.COORDINATE_PARAM_NAMES);
 
-		IdType inputTypeFormat = IdType.parse(inputType).orElse(IdType.UUID);
+		Optional<RestSupportedIdType> inputTypeFormat = RestSupportedIdType.parse(inputType);
+		
 		Optional<? extends Chronology> object = Optional.empty();
-		switch (inputTypeFormat)
+		
+		if (inputTypeFormat.isPresent())
 		{
-			case VUID:
+			if (inputTypeFormat.get().enumId == IdType.NID.getId())
 			{
-				long l = NumericUtils.getLong(id).orElse(0l);
-				Optional<Integer> nid = Frills.getNidForVUID(l);
-				if (nid.isPresent())
+				if (NumericUtils.isNID(id))
 				{
-					object = Get.identifiedObjectService().getChronology(nid.get());
+					object = Get.identifiedObjectService().getChronology(NumericUtils.getNID(id).getAsInt());
 				}
-				break;
+				else
+				{
+					throw new RestException("id", id, "The input id was not a nid");
+				}
 			}
-			case SCTID:
+			else if (inputTypeFormat.get().enumId == IdType.UUID.getId())
 			{
-				long l = NumericUtils.getLong(id).orElse(0l);
-				Optional<Integer> nid = Frills.getNidForSCTID(l);
-				if (nid.isPresent())
-				{
-					object = Get.identifiedObjectService().getChronology(nid.get());
-				}
-				break;
-			}
-			case UUID:
-			case NID:
-				// If not specified, we default it to uuid, even if it is a nid, so check if it is a nid
 				Optional<UUID> uuid = UUIDUtil.getUUID(id);
 				if (uuid.isPresent())
 				{
@@ -158,47 +152,66 @@ public class IdAPIs
 						object = Get.identifiedObjectService().getChronology(Get.identifierService().getNidForUuids(uuid.get()));
 					}
 				}
-				else if (NumericUtils.isNID(id))
+				else
 				{
-					object = Get.identifiedObjectService().getChronology(NumericUtils.getNID(id).getAsInt());
+					throw new RestException("id", id, "The input id was not a uuid");
 				}
-				if (!object.isPresent() && StringUtils.isBlank(id))
+			}
+			else
+			{
+				//It should be a nid
+				List<Integer> nids = Frills.getNidForAltId(inputTypeFormat.get().enumId, id);
+				if (nids.size() > 0)
 				{
-					throw new RestException("inputType", "must be provided in cases where the 'id' value is ambiguous");
+					object = Get.identifiedObjectService().getChronology(nids.get(0));
 				}
-				break;
-
-			default :
-				log.error("Design error - case not handled: " + inputTypeFormat);
-				throw new RestException("Internal server error");
+			}
+		}
+		else
+		{
+			// If not specified, check for uuid or nid
+			Optional<UUID> uuid = UUIDUtil.getUUID(id);
+			if (uuid.isPresent())
+			{
+				if (Get.identifierService().hasUuid(uuid.get()))
+				{
+					object = Get.identifiedObjectService().getChronology(Get.identifierService().getNidForUuids(uuid.get()));
+				}
+			}
+			else if (NumericUtils.isNID(id))
+			{
+				object = Get.identifiedObjectService().getChronology(NumericUtils.getNID(id).getAsInt());
+			}
+			if (!object.isPresent() && !StringUtils.isBlank(id))
+			{
+				throw new RestException("inputType", "must be provided in cases where the 'id' value is ambiguous");
+			}
 		}
 
 		if (object.isPresent())
 		{
-			IdType outputTypeFormat = IdType.parse(outputType).orElse(IdType.UUID);
-			switch (outputTypeFormat)
+			RestSupportedIdType outputTypeFormat = RestSupportedIdType.parse(outputType).orElse(new RestSupportedIdType(IdType.UUID));
+			if (outputTypeFormat.enumId == IdType.NID.getId())
 			{
-				case NID:
-					return new RestId(outputTypeFormat, object.get().getNid() + "");
-				case SCTID:
-					Optional<Long> sctId = Frills.getSctId(object.get().getNid(), RequestInfo.get().getStampCoordinate());
-					if (!sctId.isPresent())
-					{
-						throw new RestException("No SCTID was found on the specified component '" + object.get().getPrimordialUuid() + "'");
-					}
-					return new RestId(outputTypeFormat, "" + sctId.get());
-				case UUID:
-					return new RestId(outputTypeFormat, object.get().getPrimordialUuid().toString());
-				case VUID:
-					Optional<Long> vuId = Frills.getVuId(object.get().getNid(), RequestInfo.get().getStampCoordinate());
-					if (!vuId.isPresent())
-					{
-						throw new RestException("No VUID was found on the specified component '" + object.get().getPrimordialUuid() + "'");
-					}
-					return new RestId(outputTypeFormat, "" + vuId.get());
-				default :
-					log.error("Design error - case not handled: " + inputTypeFormat);
-					throw new RestException("Internal server error");
+				return new RestId(outputTypeFormat, object.get().getNid() + "");
+			}
+			else if (outputTypeFormat.enumId == IdType.UUID.getId())
+			{
+				return new RestId(outputTypeFormat, object.get().getPrimordialUuid().toString());
+			}
+			else
+			{
+				//must be a nid
+				Optional<String> s = Frills.getAltId(outputTypeFormat.enumId, object.get().getNid(), RequestInfo.get().getStampCoordinate());
+				if (s.isPresent())
+				{
+					return new RestId(outputTypeFormat, s.get());
+				}
+				else
+				{
+					throw new RestException("No id of type " + outputTypeFormat.enumName + " was found on the specified component '" 
+							+ object.get().getPrimordialUuid() + "'");
+				}
 			}
 		}
 		else
@@ -208,7 +221,12 @@ public class IdAPIs
 	}
 
 	/**
-	 * Enumerate the valid types for the system. These values can be cached for the life of the connection.
+	 * Enumerate the valid types for the system. These values can be cached for the life of the connection, though 
+	 * if you create a new semantic id type, you would need to call this again to get the new list.
+	 * 
+	 * This returns 'special' types, like UUID and NID, and all semantic based types which would be returned via the
+	 * /ids call.
+	 * 
 	 * @return the supported types
 	 * @throws RestException 
 	 */
@@ -231,6 +249,8 @@ public class IdAPIs
 	 * 
 	 * NOTE: For the convenient use of ids as labels, the descriptionTypePrefs is unconditionally overridden to the value of
 	 * "REGULAR,FQN"
+	 * 
+	 * This returns a subset of idTypes contained in the /types call - only the ones that are stored via a semantic.
 	 * 
 	 * @param expand - concept-specific expandable parameters
 	 * 
@@ -256,7 +276,6 @@ public class IdAPIs
 					.getLatestVersion(RequestInfo.get().getStampCoordinate());
 			if (identifierAnnotationSemanticLatestOptional.isPresent())
 			{
-				// TODO handle contradictions
 				Util.logContradictions(log, identifierAnnotationSemanticLatestOptional);
 				SemanticVersion identifierAnnotationSemantic = identifierAnnotationSemanticLatestOptional.get();
 				identifierAnnotatedConcepts.add(Get.conceptService().getConceptChronology(identifierAnnotationSemantic.getReferencedComponentNid()));
@@ -273,7 +292,8 @@ public class IdAPIs
 		int i = 0;
 		for (ConceptChronology idConcept : identifierAnnotatedConcepts)
 		{
-			arrayToReturn[i++] = new RestConceptChronology(idConcept, false, true, false, (UUID) null, languageCoordinateToUse);
+			arrayToReturn[i++] = new RestConceptChronology(idConcept, false, true, false, (UUID) null, languageCoordinateToUse, 
+					RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED);
 		}
 
 		// Sort results by description for display

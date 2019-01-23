@@ -602,12 +602,12 @@ public class ReadOnlyRestTest extends BaseTestCode
 		result = checkFail(target(byRefSearchRequestPath).queryParam(RequestParameters.nid, MetaData.METADATA____SOLOR.getNid())
 				.queryParam(RequestParameters.maxPageSize, "100").queryParam(RequestParameters.expand, "uuid," + ExpandUtil.referencedConcept).request()
 				.header(Header.Accept.toString(), MediaType.APPLICATION_JSON).get()).readEntity(String.class);
-		Assert.assertTrue(result.contains(MetaData.SOLOR_MODULE____SOLOR.getPrimordialUuid().toString()), "looked in " + result);
+		Assert.assertTrue(result.contains(MetaData.METADATA_MODULES____SOLOR.getPrimordialUuid().toString()), "looked in " + result);
 
 		result = checkFail(target(byRefSearchRequestPath).queryParam(RequestParameters.nid, MetaData.METADATA____SOLOR.getNid())
 				.queryParam(RequestParameters.maxPageSize, "100").queryParam(RequestParameters.expand, "uuid").request()
 				.header(Header.Accept.toString(), MediaType.APPLICATION_JSON).get()).readEntity(String.class);
-		Assert.assertFalse(result.contains(MetaData.SOLOR_MODULE____SOLOR.getPrimordialUuid().toString()), "looked in " + result);
+		Assert.assertFalse(result.contains(MetaData.METADATA_MODULES____SOLOR.getPrimordialUuid().toString()), "looked in " + result);
 	}
 
 	@Test
@@ -652,7 +652,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 		String result = checkFail(target(semanticSearchRequestPath)
 				.queryParam(RequestParameters.query, MetaData.PREFERRED____SOLOR.getNid() + "")
 				.queryParam(RequestParameters.treatAsString, "true")
-				.queryParam(RequestParameters.maxPageSize, 1000 )
+				.queryParam(RequestParameters.maxPageSize, 2000 )
 				.queryParam(RequestParameters.expand, ExpandUtil.referencedConcept)
 				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 		Assert.assertTrue(result.contains(DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid().toString()), "looked in " + result);
@@ -660,7 +660,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 		result = checkFail(target(semanticSearchRequestPath)
 				.queryParam(RequestParameters.query, MetaData.PREFERRED____SOLOR.getNid() + "")
 				.queryParam(RequestParameters.treatAsString, "true")
-				.queryParam(RequestParameters.maxPageSize, 1000)
+				.queryParam(RequestParameters.maxPageSize, 2000)
 				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 		Assert.assertFalse(result.contains(DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid().toString()));
 	}

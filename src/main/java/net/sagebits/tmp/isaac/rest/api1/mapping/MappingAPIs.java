@@ -113,6 +113,9 @@ public class MappingAPIs
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param expand - A comma separated list of fields to expand. Supports 'comments'. When comments is passed, the latest comment(s) attached to
 	 *            each mapSet are included.
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of each unique mapping set definition found in the system on the specified coordinates.
 	 * 
 	 *         TODO add parameters to this method to allow the return of all versions (current + historical)
@@ -123,12 +126,13 @@ public class MappingAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.mappingSetsComponent)
 	public RestMappingSetVersion[] getMappingSets(@QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		ArrayList<RestMappingSetVersion> results = new ArrayList<>();
 		UUID processIdUUID = Util.validateWorkflowProcess(processId);
@@ -169,8 +173,10 @@ public class MappingAPIs
 	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - A comma separated list of fields to expand. Supports 'comments'. When comments is passed, the latest comment(s) attached to
-	 *            each
-	 *            mapSet are included.
+	 *            each mapSet are included.
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of the specified mapping set.
 	 * 
 	 *         TODO add parameters to this method to allow the return of all versions (current + historical)
@@ -181,12 +187,13 @@ public class MappingAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.mappingSetComponent + "{" + RequestParameters.id + "}")
 	public RestMappingSetVersion getMappingSet(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		return getMappingSet(id, processId);
 	}
@@ -274,6 +281,9 @@ public class MappingAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the mapping items versions object.
 	 * 
 	 * @throws RestException
@@ -284,12 +294,14 @@ public class MappingAPIs
 	public RestMappingItemVersionPage getMappingItemPage(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(250 + "") int maxPageSize, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, 
+				RequestParameters.altId);
 
 		ArrayList<RestMappingItemVersion> items = new ArrayList<>();
 
@@ -328,6 +340,9 @@ public class MappingAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the mapping item version object.
 	 * 
 	 * @throws RestException
@@ -336,12 +351,13 @@ public class MappingAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.mappingItemComponent + "{" + RequestParameters.id + "}")
 	public RestMappingItemVersion getMappingItem(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		int nid = RequestInfoUtils.getSemanticNidFromParameter(RequestParameters.id, id);
 

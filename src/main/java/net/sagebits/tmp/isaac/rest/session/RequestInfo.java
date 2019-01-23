@@ -30,6 +30,7 @@
 
 package net.sagebits.tmp.isaac.rest.session;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -45,6 +46,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
+import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestSupportedIdType;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesToken;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesTokens;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
@@ -92,6 +94,7 @@ public class RequestInfo
 	private EditToken editToken_ = null;
 	private long createTime_;
 	private long requestId_;
+	private List <RestSupportedIdType> requestedAdditionalIds_ = new ArrayList<>();
 
 	private EditCoordinate editCoordinate_ = null;
 
@@ -192,6 +195,28 @@ public class RequestInfo
 		}
 
 		readExpandables(parameters);
+		if (parameters.containsKey(RequestParameters.altId))
+		{
+			for (String s : parameters.get(RequestParameters.altId))
+			{
+				Optional<RestSupportedIdType> o = RestSupportedIdType.parse(s);
+				if (o.isPresent())
+				{
+					requestedAdditionalIds_.add(o.get());
+				}
+				else if (s.trim().toUpperCase().equals("ANY"))
+				{
+					for (RestSupportedIdType rsit : RestSupportedIdType.getAll())
+					{
+						requestedAdditionalIds_.add(rsit);
+					}
+				}
+				else
+				{
+					throw new RestException(RequestParameters.altId, s, "invalid alt identifier requested");
+				}
+			}
+		}
 
 		String serializedCoordinatesTokenByParams = CoordinatesTokens.get(CoordinatesUtil.getCoordinateParameters(parameters));
 		if (serializedCoordinatesTokenByParams != null)
@@ -517,7 +542,7 @@ public class RequestInfo
 					{
 						throw new RestException("Edit token cannot be constructed without user information!");
 					}
-					editToken_ = new EditToken(UserProvider.getAuthorNid(user_.get().getName()),
+					editToken_ = new EditToken(UserProvider.getAuthorNid(user_.get()),
 							module != null ? module : defaultEditCoordinate.getModuleNid(), path != null ? path : defaultEditCoordinate.getPathNid(),
 							workflowProcessid);
 				}
@@ -642,5 +667,10 @@ public class RequestInfo
 	public long getUniqueId()
 	{
 		return requestId_;
+	}
+	
+	public List<RestSupportedIdType> getRequestedAdditionalIds()
+	{
+		return requestedAdditionalIds_;
 	}
 }

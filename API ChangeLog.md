@@ -15,7 +15,31 @@ Bug fixes should not be documented here, rather, than should be documented in th
 
 *** Don't forget to update the value in the class RestSystemInfo ***
 
-* 2018/11/?? - 1.19.1
+* 2019/01/22 - 1.19.5
+    * Tweak the concept create API so that the automated semantic tag creation doesn't fail if there are two semantic tags, and one 
+          of them is the metadata tag "SOLOR".  The metadata tag will be ignored, using the more specific tag.
+    * Added the optional parameter altId - to most get methods that return RestIdentifiedObject structures (directly or nested).  
+        When specified (with one or more values) from /1/id/types or the value 'ANY' then those ids will also be popualted in each of the 
+        RestIdentifiedObjects returned.  This option is now available on most calls under /association/, /classifier/, /concept/, /logicGraph/,
+        /mapping/, /search/, /semantic/, /system/, /taxonomy/, /validation/.  The specific calls that accept the parameter have the parameter
+        documented. 
+    * /id/* methods were enhanced to handle any type of system-flagged ID - all of the children of IDENTIFIER_SOURCE____SOLOR.
+
+* 2018/12/31 - 1.19.4
+    * Add the ability to clear the stored classifier run data via a rest call.
+
+* 2018/12/28 - 1.19.3
+    * Change the RestClassifierResult structure to add count variables for all of the fields that are arrays or lists.
+    * Add a largeResults parameter to classifier readback APIs.  By default, arrays and lists are now trimmed to 100 results, unless
+        largeResults=true is passed.
+
+* 2018/12/28 - 1.19.2
+    * Added system/descriptionTypes to fetch all description types, sorted and organized under the core types across all terminologies.
+    * Added write/1/classifier/classify API for triggering a classification
+    * Added /1/classifier/classifications and /1/classifier/classification/{id} for reading back in progress and completed classifications.
+    * Added cycles and orphan information into classification result APIs (and added those checks into the classification process itself)
+
+* 2018/12/14 - 1.19.1
     * Put back 'connectorTypeDescription' in the RestTypedConnectorNode, as the comment below in 2.18.1 was wrong - RestIdentifiedObject doesn't 
         reliably contain a description. 
     * Added an expand option of 'countParents' to the LogicGraph read API, which in combination with the existing 'version' expand parameter
@@ -23,6 +47,12 @@ Bug fixes should not be documented here, rather, than should be documented in th
         count populated.
     * Removed isConceptDefined from both RestConceptNode and RestTypedConnectorNode, as this information is already included in the nested
         RestConceptVersion object, so long as expand='version' is passed in.
+    * Updated the result of taxonomy/version so that if a parent count greater than 0 is requested, and children are requested, the immediate level 
+        of parents for each child will be returned as well.
+    * Added an expand option of  'includeParents' to the logicGraph/Version call.
+    * Added an expand option of 'terminologyType' to the logicGraph/Version call.
+    * Added expand options of 'countParents' and 'includeParents' to all of the search API calls.
+    * Added more validation to prevent more invalid logic graph construction.
 
 * 2018/11/20 - 1.18.1
     * Adding measureSemanticConcept to RestFeatureNode to align with internal API

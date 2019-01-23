@@ -33,16 +33,17 @@ import net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner;
 import sh.isaac.MetaData;
 import sh.isaac.api.Get;
 import sh.isaac.api.LookupService;
+import sh.isaac.api.Status;
 import sh.isaac.api.bootstrap.TermAux;
 import sh.isaac.api.commit.CommitService;
 import sh.isaac.api.externalizable.BinaryDataReaderService;
 import sh.isaac.api.index.IndexBuilderService;
 import sh.isaac.api.util.RecursiveDelete;
-import sh.isaac.converters.sharedUtils.IBDFCreationUtility;
+import sh.isaac.api.util.UuidT5Generator;
+import sh.isaac.convert.directUtils.DirectWriteHelper;
 import sh.isaac.converters.sharedUtils.stats.ConverterUUID;
 import sh.isaac.misc.constants.VHATConstants;
 import sh.isaac.misc.modules.vhat.VHATIsAHasParentSynchronizingChronologyChangeListener;
-import sh.isaac.utility.Frills;
 
 /**
  * {@link ConfigureServerForTest}
@@ -52,7 +53,7 @@ import sh.isaac.utility.Frills;
 @Test(suiteName="testSuite", groups="first")
 public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 {
-	public static Logger log = LogManager.getLogger(ReadOnlyRestTest.class);
+	private static Logger log = LogManager.getLogger(ReadOnlyRestTest.class);
 
 	@Override
 	protected Application configure()
@@ -103,19 +104,19 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 	}
 	
 	// VHAT-specific metadata
-	@SuppressWarnings("deprecation")
-	public void createVHATHasParentAssociation() throws Exception
+	private void createVHATHasParentAssociation() throws Exception
 	{
 		File debugOutput = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "restTestVHATMetaDataImportDebug");
 		debugOutput.mkdir();
-		Get.service(ConverterUUID.class).configureNamespace(TermAux.VHAT_MODULES.getPrimordialUuid());
-		IBDFCreationUtility importUtil = new IBDFCreationUtility(MetaData.USER____SOLOR.getPrimordialUuid(), 
-				Get.identifierService().getUuidPrimordialForNid(Frills.createAndGetDefaultEditModule(MetaData.VHAT_MODULES____SOLOR.getNid())),
-				MetaData.DEVELOPMENT_PATH____SOLOR.getPrimordialUuid(), debugOutput, null);
-		// HAS_PARENT_VHAT_ASSOCIATION_TYPE_OBJECT = importUtil.createConcept(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE_UUID, null,
-		// sh.isaac.api.Status.ACTIVE, null);
-		importUtil.createConcept(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE.getPrimordialUuid(), "has_parent", true, null, sh.isaac.api.Status.ACTIVE);
-		importUtil.configureConceptAsAssociation(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE.getPrimordialUuid(), null);
+		ConverterUUID converterUUID = new ConverterUUID(UuidT5Generator.PATH_ID_FROM_FS_DESC, false);
+		
+		DirectWriteHelper dwh = new DirectWriteHelper(TermAux.USER.getNid(), MetaData.VHAT_MODULES____SOLOR.getNid(), 
+				MetaData.DEVELOPMENT_PATH____SOLOR.getNid(), converterUUID, "VHAT", false);
+
+		dwh.makeConceptEnNoDialect(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE.getPrimordialUuid(), "has_parent", 
+				MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getPrimordialUuid(), null, Status.ACTIVE, System.currentTimeMillis());
+		dwh.configureConceptAsAssociation(VHATConstants.VHAT_HAS_PARENT_ASSOCIATION_TYPE.getPrimordialUuid(), "something", null, 
+				null, null, System.currentTimeMillis());
 		LookupService.get().getService(VHATIsAHasParentSynchronizingChronologyChangeListener.class).enable();
 	}
 

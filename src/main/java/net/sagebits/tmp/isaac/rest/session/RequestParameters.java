@@ -178,6 +178,7 @@ public class RequestParameters {
 	// Parsable individual or comma-delimited list of IdType enum values: i.e.: uuid, nid, sctid, vuid
 	public final static String inputType = "inputType";
 	public final static String outputType = "outputType";
+	public final static String altId = "altId";
 
 	// Workflow
 	public final static String definitionId = "definitionId"; // UUID string
@@ -224,6 +225,11 @@ public class RequestParameters {
 	public final static String parentConceptId = "parentConceptId";
 	
 	
+	//classification
+	public final static String defaultModule = "defaultModule";
+	public final static String largeResults = "largeResults";
+	
+	
 	/**
 	 * Set of all known parameters usable to detect malformed or incorrect parameters
 	 */
@@ -268,6 +274,7 @@ public class RequestParameters {
 			//IdAPIs
 			inputType,
 			outputType,
+			altId,
 			
 			active,
 			
@@ -286,6 +293,8 @@ public class RequestParameters {
 			vuidGeneration,
 			
 			fqn,
+			defaultModule,
+			largeResults,
 			parentConceptId
 			
 			));

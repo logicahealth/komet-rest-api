@@ -3,8 +3,24 @@ ISAAC-rest Changelog
 This changelog summarizes changes and fixes which are a part of each revision.  For more details on the fixes, refer tracking numbers where provided, and the git commit history.  Note that this is not the same as the API Changelog.md.  This file will contain information on all changes - including bug fixes.  The API Changelog will only contain documentation on changes of the API - and those are tied to the 
 API version number, not the release version number.
 
-* 2018/11/?? - 6.16
+* 2019/01/10 - 6.20
+    * Fix a regression with the handling of name, inverse name and description on mapsets, related to external description types.
+    * Fix a bug with update of mapping items where null's in the data arraylist lead to a null pointer.
+
+* 2018/12/31 - 6.19
+    * Reworking the storage of classifier results, to improve performance.
+    * API additions for management of stored classifier data
+
+* 2018/12/28 - 6.18
+    * API updates to the classifier API per the API log.
+
+* 2018/12/28 - 6.17
+    * API additions per the API change log
+    * Bug fixes for testing with local DEFAULT user.
+
+* 2018/12/14 - 6.16
     * API tweaks in the LogicGraph returns, per the API changelog
+    * Fix a bug with parents / parent counts in search results.
 
 * 2018/11/20 - 6.15
     * improve description reading for RestIdentifiedObjects, so it follows the coord prefs better

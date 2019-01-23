@@ -92,6 +92,9 @@ public class AssociationAPIs
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param expand - the optional items to be expanded. Supports 'referencedConcept' If 'referencedConcept' is passed, you can also pass
 	 *            'versionsAll' or 'versionsLatestOnly'
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of each unique association definition found in the system on the specified coordinates, sorted by the association
 	 *         name.
 	 * 
@@ -102,12 +105,13 @@ public class AssociationAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationsComponent)
 	public RestAssociationTypeVersion[] getAssociations(@QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		ArrayList<RestAssociationTypeVersion> results = new ArrayList<>();
 
@@ -151,6 +155,9 @@ public class AssociationAPIs
 	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - the optional items to be expanded. Supports 'referencedConcept' If 'referencedConcept' is passed, you can also pass
 	 *            'versionsAll' or 'versionsLatestOnly'
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of the specified associationType
 	 * 
 	 * @throws RestException
@@ -160,12 +167,13 @@ public class AssociationAPIs
 	@Path(RestPaths.associationComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationTypeVersion getAssociationType(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		int nid = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.id, id);
 		StampCoordinate conceptVersionStampCoordinate = Util.getPreWorkflowStampCoordinate(processId, nid);
@@ -191,6 +199,9 @@ public class AssociationAPIs
 	 *            'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of each unique association instance of type associationType
 	 * 
 	 * @throws RestException
@@ -202,12 +213,13 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
 			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 
@@ -272,6 +284,9 @@ public class AssociationAPIs
 	 *            'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of each unique association that has a source component equal to 'id'
 	 * 
 	 * @throws RestException
@@ -281,12 +296,13 @@ public class AssociationAPIs
 	@Path(RestPaths.associationsWithSourceComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationItemVersion[] getSourceAssociations(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 
@@ -316,6 +332,9 @@ public class AssociationAPIs
 	 *            'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the latest version of each unique association that has a source component equal to 'id'
 	 * 
 	 * @throws RestException
@@ -325,12 +344,13 @@ public class AssociationAPIs
 	@Path(RestPaths.associationsWithTargetComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationItemVersion[] getTargetAssociations(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		// TODO Dan lookup by target performance is not good at the moment, not sure why
 		UUID processIdUUID = Util.validateWorkflowProcess(processId);
@@ -360,6 +380,10 @@ public class AssociationAPIs
 	 *            'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
+	 *            
 	 * @return the latest version of the requested association on the provided coordinate. May return null, if the association isn't available on
 	 *         the specified coordinate.
 	 * 
@@ -369,12 +393,13 @@ public class AssociationAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationItemComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationItemVersion getAssociation(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand) throws RestException
+			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
-				RequestParameters.COORDINATE_PARAM_NAMES);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
 		Optional<AssociationInstance> result = AssociationUtilities.getAssociation(RequestInfoUtils.getSemanticNidFromParameter(RequestParameters.id, id),
 				RequestInfo.get().getStampCoordinate());

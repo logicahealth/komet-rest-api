@@ -84,7 +84,8 @@ public class TaxonomyAPIs
 	 * 
 	 * @param id - A UUID or nid of a concept to center this taxonomy lookup on. If not provided, the default value
 	 *            is the UUID for the ISAAC_ROOT concept.
-	 * @param parentHeight - How far to walk up (expand) the parent tree
+	 * @param parentHeight - How far to walk up (expand) the parent tree.  When the parentHeight is > 0, one level of parent will be expanded
+	 *            for each child returned as well, if childDepth is > 0.
 	 * @param countParents - true to count the number of parents above this node. May be used with or without the parentHeight parameter
 	 *            - it works independently. When used in combination with the parentHeight parameter, only the last level of items returned will
 	 *            return parent counts. This parameter also applies to the expanded children - if childDepth is requested, and countParents is set,
@@ -108,6 +109,9 @@ public class TaxonomyAPIs
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param pageNum The pagination page number >= 1 to return
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0, defaults to (MAX_PAGE_SIZE_DEFAULT==5000)
+	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
+	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
+	 *     performance. 
 	 * @return the concept version object
 	 * @throws RestException
 	 */
@@ -125,14 +129,15 @@ public class TaxonomyAPIs
 			@QueryParam(RequestParameters.terminologyType) @DefaultValue("false") String terminologyType, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(PAGE_NUM_DEFAULT + "") int pageNum,
-			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(MAX_PAGE_SIZE_DEFAULT + "") int maxPageSize) throws RestException
+			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(MAX_PAGE_SIZE_DEFAULT + "") int maxPageSize,
+			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		SecurityUtils.validateRole(securityContext, getClass());
 
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.parentHeight,
 				RequestParameters.countParents, RequestParameters.childDepth, RequestParameters.countChildren, RequestParameters.semanticMembership,
 				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES,
-				RequestParameters.PAGINATION_PARAM_NAMES);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.altId);
 
 		boolean countChildrenBoolean = Boolean.parseBoolean(countChildren.trim());
 		boolean countParentsBoolean = Boolean.parseBoolean(countParents.trim());
@@ -165,7 +170,8 @@ public class TaxonomyAPIs
 
 			if (childDepth > 0)
 			{
-				addChildren(concept.getNid(), rcv, tree, countChildrenBoolean, countParentsBoolean, childDepth - 1, includeSemanticMembership,
+				//If parent height of more than 1 was requested, populate the direct parents for each child.
+				addChildren(concept.getNid(), rcv, tree, countChildrenBoolean, parentHeight > 0, countParentsBoolean, childDepth - 1, includeSemanticMembership,
 						includeTerminologyType, new NidSet(), processIdUUID, pageNum, maxPageSize);
 			}
 			else if (countChildrenBoolean)
@@ -183,6 +189,7 @@ public class TaxonomyAPIs
 	 * @param rcv 
 	 * @param tree
 	 * @param countLeafChildren
+	 * @param populateParents
 	 * @param countParents
 	 * @param remainingChildDepth
 	 * @param includeSemanticMembership
@@ -193,9 +200,9 @@ public class TaxonomyAPIs
 	 * @param maxPageSize > 0
 	 * @throws RestException 
 	 */
-	public static void addChildren(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree, boolean countLeafChildren, boolean countParents,
-			int remainingChildDepth, boolean includeSemanticMembership, boolean includeTerminologyType, NidSet alreadyAddedChildren, UUID processId, int pageNum,
-			// PAGE_NUM_DEFAULT == 1
+	public static void addChildren(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree, boolean countLeafChildren, boolean populateParents, 
+			boolean countParents, int remainingChildDepth, boolean includeSemanticMembership, boolean includeTerminologyType, NidSet alreadyAddedChildren, 
+			UUID processId, int pageNum, // PAGE_NUM_DEFAULT == 1 
 			int maxPageSize) // MAX_PAGE_SIZE_DEFAULT == 5000
 			throws RestException
 	{
@@ -262,12 +269,12 @@ public class TaxonomyAPIs
 					{
 						// expand chronology of child even if unrequested, otherwise, you can't identify what the child is
 						// TODO handle contradictions
-						RestConceptVersion childVersion = new RestConceptVersion(cv.get(), true, false, countParents, false, false,
+						RestConceptVersion childVersion = new RestConceptVersion(cv.get(), true, populateParents, countParents, false, false,
 								RequestInfo.get().getStated(), includeSemanticMembership, includeTerminologyType, processId);
 						children.add(childVersion);
 						if (remainingChildDepth > 0)
 						{
-							addChildren(childConcept.getNid(), childVersion, tree, countLeafChildren, countParents, remainingChildDepth - 1,
+							addChildren(childConcept.getNid(), childVersion, tree, countLeafChildren, populateParents, countParents, remainingChildDepth - 1,
 									includeSemanticMembership, includeTerminologyType, alreadyAddedChildren, processId, 1, MAX_PAGE_SIZE_DEFAULT);
 						}
 						else if (countLeafChildren)
