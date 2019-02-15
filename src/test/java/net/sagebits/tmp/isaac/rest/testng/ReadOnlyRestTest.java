@@ -32,6 +32,7 @@ package net.sagebits.tmp.isaac.rest.testng;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,9 +44,11 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.xml.bind.JAXBException;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.codehaus.plexus.util.xml.XmlUtil;
 import org.glassfish.grizzly.http.util.Header;
 import org.glassfish.grizzly.utils.Charsets;
 import org.testng.Assert;
@@ -70,6 +73,8 @@ import net.sagebits.tmp.isaac.rest.api1.data.enumerations.DescriptionStyle;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.IdType;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestDescriptionStyle;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestObjectChronologyType;
+import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResult;
+import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResultPage;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResults;
 import net.sagebits.tmp.isaac.rest.api1.data.search.RestSearchResult;
 import net.sagebits.tmp.isaac.rest.api1.data.search.RestSearchResultPage;
@@ -85,12 +90,15 @@ import net.sagebits.tmp.isaac.rest.tokens.CoordinatesToken;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesTokens;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
 import sh.isaac.MetaData;
+import sh.isaac.api.bootstrap.TermAux;
 import sh.isaac.api.constants.DynamicConstants;
 import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.api.coordinate.StampPrecedence;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.api.logic.NodeSemantic;
+import sh.isaac.api.query.Query;
+import sh.isaac.api.query.clauses.DescriptionLuceneMatch;
 import sh.isaac.model.configuration.LanguageCoordinates;
 import sh.isaac.model.configuration.LogicCoordinates;
 import sh.isaac.model.configuration.ManifoldCoordinates;
@@ -1506,7 +1514,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 	}
 
 	@Test
-	public void testQueryAPIs() throws IOException
+	public void testQueryAPIs() throws IOException, JAXBException
 	{
 		// Retrieve valid input XML from file
 		final String testInputFilename = "src/test/resources/testdata/readonlyresttest.testqueryapis.testflworquery.input.flwor";
@@ -1516,19 +1524,67 @@ public class ReadOnlyRestTest extends BaseTestCode
 		final String validTestOutputFilename = "src/test/resources/testdata/readonlyresttest.testqueryapis.testflworquery.output.xml";
 		final String validTestOutputXml = FileUtils.readFileToString(new File(validTestOutputFilename), Charsets.UTF8_CHARSET);
 
-		// Test FLWOR query with valid unput
+		// Test FLWOR query with valid unput, all pages
 		Response response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
 
 		// Ensure request succeeded and retrieve serialized response
 		String receivedResultXml = checkFail(response).readEntity(String.class);
 
+//		System.out.println("FLWOR QUERY RETURNED: " + XmlPrettyPrinter.toString(receivedResultXml));
+//		System.out.println("FLWOR QUERY EXPECTED: " + XmlPrettyPrinter.toString(validTestOutputXml));
+
 		// Deserialize receivedResultJson into receivedResultObject
-		RestQueryResults receivedResultObject = XMLUtils.unmarshalObject(RestQueryResults.class, receivedResultXml);
+		RestQueryResultPage receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
 
 		// Deserialize validTestOutputXml into RestQueryResults
-		RestQueryResults expectedResultObject = XMLUtils.unmarshalObject(RestQueryResults.class, validTestOutputXml);
+		RestQueryResultPage expectedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, validTestOutputXml);
 
 		// Compare receivedResultObject to expectedResultObject
-		Assert.assertTrue(receivedResultObject.equals(expectedResultObject));
+		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), expectedResultObject.getResults()));
+		
+		if (receivedResultObject.getResults().length <= 1) {
+			// If only one result row, then no need to test pagination
+			return;
+		}
+		
+		// If more than 1 result row
+		final RestQueryResult expectedPage1Result = receivedResultObject.getResults()[0];
+		final RestQueryResult expectedPage2Result = receivedResultObject.getResults()[1];
+		
+		// Test FLWOR query with valid unput, page 1 of size 1
+		response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent)
+				.queryParam(RequestParameters.pageNum, 1)
+				.queryParam(RequestParameters.maxPageSize, 1)
+				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
+
+		// Ensure request succeeded and retrieve serialized response
+		receivedResultXml = checkFail(response).readEntity(String.class);
+		
+//		System.out.println("FLWOR QUERY RETURNED PAGE 1: " + XmlPrettyPrinter.toString(receivedResultXml));
+//		System.out.println("FLWOR QUERY EXPECTED FIRST ENTRY FROM: " + XmlPrettyPrinter.toString(validTestOutputXml));
+
+		// Deserialize receivedResultJson into receivedResultObject
+		receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
+
+		// Compare receivedResultObject to expectedPage1Result
+		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), new RestQueryResult[] { expectedPage1Result }));
+		
+		// Test FLWOR query with valid unput, page 2 of size 1
+		response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent)
+				.queryParam(RequestParameters.pageNum, 2)
+				.queryParam(RequestParameters.maxPageSize, 1)
+				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
+
+		// Ensure request succeeded and retrieve serialized response
+		receivedResultXml = checkFail(response).readEntity(String.class);
+
+//		System.out.println("FLWOR QUERY RETURNED PAGE 2: " + XmlPrettyPrinter.toString(receivedResultXml));
+//		System.out.println("FLWOR QUERY EXPECTED SECOND ENTRY FROM: " + XmlPrettyPrinter.toString(validTestOutputXml));
+
+		// Deserialize receivedResultJson into receivedResultObject
+		receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
+
+		// Compare receivedResultObject to expectedPage1Result
+		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), new RestQueryResult[] { expectedPage2Result }));
 	}
 }

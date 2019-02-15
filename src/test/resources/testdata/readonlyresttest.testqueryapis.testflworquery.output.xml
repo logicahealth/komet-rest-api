@@ -1,9 +1,15 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<restQueryResults>
-    <row>
+<restQueryResultPage>
+    <paginationData>
+        <pageNum>1</pageNum>
+        <approximateTotal>2</approximateTotal>
+        <totalIsExact>false</totalIsExact>
+    </paginationData>
+    <results>
         <result>79a92f9e-cd93-5537-984c-c9aa4532e59d</result>
-    </row>
-    <row>
+        <result>Active</result>
+    </results>
+    <results>
         <result>f02874c5-186b-53c4-9054-f819975a9814</result>
-    </row>
-</restQueryResults>
+        <result>Active</result>
+    </results>
+</restQueryResultPage>

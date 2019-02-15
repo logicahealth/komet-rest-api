@@ -30,78 +30,68 @@
 
 package net.sagebits.tmp.isaac.rest.api1.data.query;
 
-import java.util.Arrays;
-
+import java.util.List;
 import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
+import javax.xml.bind.annotation.XmlTransient;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import net.sagebits.tmp.isaac.rest.api.data.Pagination;
+import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 
 /**
+ * {@link RestQueryResultPage}
  * 
- * {@link RestQueryResultsRow}
+ * This class carries back result sets in a way that allows pagination
  *
  * @author <a href="mailto:joel.kniaz.list@gmail.com">Joel Kniaz</a>
  */
 @XmlRootElement
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE, setterVisibility = JsonAutoDetect.Visibility.NONE)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
-public class RestQueryResultsRow
+public class RestQueryResultPage
 {
-	private static Logger log = LogManager.getLogger();
 
-	@XmlElement(name="result")
-	@JsonInclude(JsonInclude.Include.ALWAYS)
-	String[] results;
+	/**
+	 * Link to retrieve current page
+	 */
+	@XmlElement
+	Pagination paginationData;
 
-	protected RestQueryResultsRow()
+	/**
+	 * The contained results
+	 */
+	@XmlElement
+	RestQueryResult[] results;
+
+	protected RestQueryResultPage()
 	{
-		// for Jaxb
+		// For jaxb
 	}
 
-	public RestQueryResultsRow(String...results) {
-		this.results = results;
-	}
-
-	/* (non-Javadoc)
-	 * @see java.lang.Object#hashCode()
+	/**
+	 * @param pageNum The pagination page number >= 1 to return
+	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
+	 * @param approximateTotal approximate size of full matching set of which this paginated result is a subset
+	 * @param totalIsExact 
+	 * @param hasMoreData 
+	 * @param baseUrl url used to construct example previous and next urls
+	 * @param results list of RestQueryResult
+	 * @throws RestException
 	 */
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + Arrays.hashCode(this.results);
-		return result;
+	public RestQueryResultPage(int pageNum, int maxPageSize, int approximateTotal, boolean totalIsExact, boolean hasMoreData, String baseUrl,
+			List<RestQueryResult> results) throws RestException
+	{
+		this.results = results.toArray(new RestQueryResult[results.size()]);
+		this.paginationData = new Pagination(pageNum, maxPageSize, approximateTotal, totalIsExact, hasMoreData, baseUrl);
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#equals(java.lang.Object)
+	/**
+	 * @return the results
 	 */
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		RestQueryResultsRow other = (RestQueryResultsRow) obj;
-		if (!Arrays.equals(results, other.results))
-			return false;
-		return true;
-	}
-
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
-	@Override
-	public String toString() {
-		return "RestQueryResultsRow [\n\tresult=" + Arrays.toString(results) + "\n]";
+	@XmlTransient
+	public RestQueryResult[] getResults()
+	{
+		return results;
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 VetsEZ Inc, Sagebits LLC
+ * Copyright 2018 VetsEZ Inc, Sagebits LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  * 
- * Contributions from 2015-2017 were performed either by US government
+ * Contributions from 2015-2017 where performed either by US government
  * employees, or under US Veterans Health Administration contracts.
  *
  * US Veterans Health Administration contributions by government employees
@@ -35,7 +35,6 @@ import java.util.Arrays;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,33 +45,28 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  * 
- * {@link RestQueryResults}
+ * {@link RestQueryResult}
  *
  * @author <a href="mailto:joel.kniaz.list@gmail.com">Joel Kniaz</a>
  */
 @XmlRootElement
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE, setterVisibility = JsonAutoDetect.Visibility.NONE)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
-public class RestQueryResults
+public class RestQueryResult
 {
 	private static Logger log = LogManager.getLogger();
 
-	@XmlElement(name="row")
+	@XmlElement(name="result")
 	@JsonInclude(JsonInclude.Include.ALWAYS)
-	RestQueryResult[] rows = new RestQueryResult[0];
+	String[] resultRow;
 
-	protected RestQueryResults()
+	protected RestQueryResult()
 	{
 		// for Jaxb
 	}
 
-	public RestQueryResults(RestQueryResult...rows) {
-		this.rows = rows;
-	}
-
-	@XmlTransient
-	public RestQueryResult[] getRows() {
-		return rows;
+	public RestQueryResult(String...results) {
+		this.resultRow = results;
 	}
 
 	/* (non-Javadoc)
@@ -82,7 +76,7 @@ public class RestQueryResults
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + Arrays.hashCode(rows);
+		result = prime * result + Arrays.hashCode(this.resultRow);
 		return result;
 	}
 
@@ -97,8 +91,8 @@ public class RestQueryResults
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		RestQueryResults other = (RestQueryResults) obj;
-		if (!Arrays.equals(rows, other.rows))
+		RestQueryResult other = (RestQueryResult) obj;
+		if (!Arrays.equals(resultRow, other.resultRow))
 			return false;
 		return true;
 	}
@@ -108,6 +102,6 @@ public class RestQueryResults
 	 */
 	@Override
 	public String toString() {
-		return "RestQueryResults [\n\trows=" + Arrays.toString(rows) + "\n]";
+		return "RestQueryResultsRow [\n\tresult=" + Arrays.toString(resultRow) + "\n]";
 	}
 }
