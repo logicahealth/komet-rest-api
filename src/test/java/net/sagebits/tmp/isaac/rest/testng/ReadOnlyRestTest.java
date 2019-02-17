@@ -1519,7 +1519,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 		final String validTestOutputFilename = "src/test/resources/testdata/readonlyresttest.testqueryapis.testflworquery.output.xml";
 		final String validTestOutputXml = FileUtils.readFileToString(new File(validTestOutputFilename), Charsets.UTF8_CHARSET);
 
-		// Test FLWOR query with valid unput, all pages
+		// Test FLWOR query with valid input, all pages
 		Response response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
 
 		// Ensure request succeeded and retrieve serialized response
@@ -1546,7 +1546,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 		final RestQueryResult expectedPage1Result = receivedResultObject.getResults()[0];
 		final RestQueryResult expectedPage2Result = receivedResultObject.getResults()[1];
 		
-		// Test FLWOR query with valid unput, page 1 of size 1
+		// Test FLWOR query with valid input, page 1 of size 1
 		response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent)
 				.queryParam(RequestParameters.pageNum, 1)
 				.queryParam(RequestParameters.maxPageSize, 1)
@@ -1579,7 +1579,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 		// Deserialize receivedResultJson into receivedResultObject
 		receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
 
-		// Compare receivedResultObject to expectedPage1Result
+		// Compare receivedResultObject to expectedPage2Result
 		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), new RestQueryResult[] { expectedPage2Result }));
 	}
 }
