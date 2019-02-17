@@ -23,10 +23,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import static java.util.stream.Collectors.*;
-import static java.lang.Math.min;
-import java.util.stream.IntStream;
+import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
@@ -43,6 +40,7 @@ import javax.xml.bind.JAXBException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import net.sagebits.tmp.isaac.rest.PaginationUtil;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResult;
@@ -223,10 +221,10 @@ public class QueryAPIs
 
 		@SuppressWarnings("unchecked")
 		List<List<String>> paginatedResult = Collections.EMPTY_LIST;
-		final Map<Integer, List<List<String>>> paginatedResults = paginate(queryResultFromIsaacAsRows, maxPageSize);
-		log.trace("Retrieved " + paginatedResults.size() + " paginated pages (pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\"):\n" + paginatedResults);
-		if (paginatedResults.get(pageNum) != null) {
-			paginatedResult = paginatedResults.get(pageNum);
+		final Optional<List<List<String>>> paginatedResults = PaginationUtil.paginate(queryResultFromIsaacAsRows, maxPageSize, pageNum);
+		log.trace("Retrieved pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\"):\n" + paginatedResults);
+		if (paginatedResults.isPresent()) {
+			paginatedResult = paginatedResults.get();
 		}
 
 		log.trace("Retrieved " + paginatedResult.size() + " paginated rows (pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\") FLWOR query:\n" + flworQueryXml);
@@ -238,14 +236,6 @@ public class QueryAPIs
 		final RestQueryResultPage resultPage = getRestQueryResultsFromFlworQueryResults(results, pageNum, maxPageSize, restPath);
 
 		return resultPage;
-	}
-
-	private static Map<Integer, List<List<String>>> paginate(List<List<String>> list, int pageSize) {
-		return IntStream.iterate(0, i -> i + pageSize)
-				.limit((list.size() + pageSize - 1) / pageSize)
-				.boxed()
-				.collect(toMap(i -> i / pageSize + 1,
-						i -> list.subList(i, min(i + pageSize, list.size()))));
 	}
 
 	private static RestQueryResults getRestQueryResultsFromFlworQueryResult(List<List<String>> queryResultFromIsaacAsRowsOfStrings) {
