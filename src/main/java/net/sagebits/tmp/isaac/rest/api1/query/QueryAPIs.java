@@ -49,7 +49,6 @@ import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResult;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResultPage;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResults;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
-import net.sagebits.tmp.isaac.rest.session.RequestInfoUtils;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
 import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
 import sh.isaac.api.Get;
