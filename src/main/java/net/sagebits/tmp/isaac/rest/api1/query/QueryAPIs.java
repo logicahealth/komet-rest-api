@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
 
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
@@ -40,7 +39,7 @@ import javax.xml.bind.JAXBException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import net.sagebits.tmp.isaac.rest.PaginationUtil;
+import net.sagebits.tmp.isaac.rest.api.data.PaginationUtils;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResult;
@@ -219,13 +218,8 @@ public class QueryAPIs
 			throw new RuntimeException(e.getLocalizedMessage() + " executing FLWOR query " + flworQueryXml, e);
 		}
 
-		@SuppressWarnings("unchecked")
-		List<List<String>> paginatedResult = Collections.EMPTY_LIST;
-		final Optional<List<List<String>>> paginatedResults = PaginationUtil.paginate(queryResultFromIsaacAsRows, maxPageSize, pageNum);
-		log.trace("Retrieved pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\"):\n" + paginatedResults);
-		if (paginatedResults.isPresent()) {
-			paginatedResult = paginatedResults.get();
-		}
+		final List<List<String>> paginatedResult = PaginationUtils.getResults(queryResultFromIsaacAsRows, pageNum, maxPageSize);
+		log.trace("Retrieved pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\"):\n" + paginatedResult);
 
 		log.trace("Retrieved " + paginatedResult.size() + " paginated rows (pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\") FLWOR query:\n" + flworQueryXml);
 

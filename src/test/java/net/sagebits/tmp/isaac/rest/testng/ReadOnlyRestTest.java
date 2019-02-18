@@ -60,7 +60,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.sagebits.tmp.isaac.rest.ExpandUtil;
-import net.sagebits.tmp.isaac.rest.PaginationUtil;
+import net.sagebits.tmp.isaac.rest.api.data.PaginationUtils;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.RestCoordinatesToken;
@@ -1587,9 +1587,10 @@ public class ReadOnlyRestTest extends BaseTestCode
 	
 	/**
 	 * fullResultSize, maxPageSize and pageNum
+	 * @throws RestException 
 	 */
 	@Test
-	public void testPaginationUtil() {
+	public void testPaginationUtil() throws RestException {
 		// Create a fullResult of size 95
 		final int fullResultSize = 95;
 		List<List<String>> fullResult = new LinkedList<>();
@@ -1597,44 +1598,44 @@ public class ReadOnlyRestTest extends BaseTestCode
 			fullResult.add(Arrays.asList(new String[] { i + "", i + "", i + "", i + "", i + "" }));
 		}
 		
-		Optional<List<List<String>>> page = Optional.empty();
+		List<List<String>> page = new LinkedList<>();
 		List<List<String>> expectedResult = new LinkedList<>();
 
 		// Check request for a page in the middle of the fullResult
 		int maxPageSize = 10;
 		int pageNum = 2;
-		page = PaginationUtil.paginate(fullResult, maxPageSize, pageNum);
-		Assert.assertTrue(page.isPresent());
+		page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		Assert.assertTrue(page.size() == maxPageSize);
 		expectedResult = new LinkedList<>();
 		for (int row = 10; row < 20; ++row) {
 			expectedResult.add(fullResult.get(row));
 		}
-		Assert.assertEquals(page.get(), expectedResult);
+		Assert.assertEquals(page, expectedResult);
 
 		// Check request for a page outside of the fullResult
 		maxPageSize = 1000;
 		pageNum = 2;
-		page = PaginationUtil.paginate(fullResult, maxPageSize, pageNum);
-		Assert.assertFalse(page.isPresent());
+		page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		Assert.assertFalse(page.size() > 0);
 
-		// Throw IllegalArgumentException on bad maxPageSize
-		IllegalArgumentException caughtException = null;
+		// Throw RestException on bad maxPageSize
+		RestException caughtException = null;
 		try {
 			maxPageSize = -1;
 			pageNum = 2;
-			page = PaginationUtil.paginate(fullResult, maxPageSize, pageNum);
-		} catch (IllegalArgumentException e) {
+			page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		} catch (RestException e) {
 			caughtException = e;
 		}
 		Assert.assertNotNull(caughtException);
 
-		// Throw IllegalArgumentException on bad pageNum
+		// Throw RestException on bad pageNum
 		caughtException = null;
 		try {
 			maxPageSize = 10;
 			pageNum = 0;
-			page = PaginationUtil.paginate(fullResult, maxPageSize, pageNum);
-		} catch (IllegalArgumentException e) {
+			page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		} catch (RestException e) {
 			caughtException = e;
 		}
 		Assert.assertNotNull(caughtException);
@@ -1642,12 +1643,12 @@ public class ReadOnlyRestTest extends BaseTestCode
 		// Check for page straddling the end of fullResult
 		maxPageSize = 10;
 		pageNum = 10;
-		page = PaginationUtil.paginate(fullResult, maxPageSize, pageNum);
-		Assert.assertTrue(page.isPresent());
+		page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		Assert.assertTrue(page.size() == ((maxPageSize * pageNum) - fullResult.size()));
 		expectedResult = new LinkedList<>();
 		for (int row = 90; row < fullResultSize; ++row) {
 			expectedResult.add(fullResult.get(row));
 		}
-		Assert.assertEquals(page.get(), expectedResult);
+		Assert.assertEquals(page, expectedResult);
 	}
 }

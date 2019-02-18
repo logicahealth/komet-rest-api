@@ -33,11 +33,7 @@ package net.sagebits.tmp.isaac.rest.api1.data.query;
 import java.util.Arrays;
 
 import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -54,8 +50,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
 public class RestQueryResult
 {
-	private static Logger log = LogManager.getLogger();
-
 	@XmlElement(name="result")
 	@JsonInclude(JsonInclude.Include.ALWAYS)
 	String[] resultRow;
