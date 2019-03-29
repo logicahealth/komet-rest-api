@@ -25,7 +25,7 @@ In Eclipse, put this in the VM Argument tab under the Run Configurations menu.
 
 To have it download a particular DB during the startup sequence, edit the file
 ```
-isaac-rest\src\test\resources\prisme.properties
+isaac-rest\src\test\resources\uts-rest-api.properties
 ```
 and specify the "nexus_..." parameters, and the "db_..." parameters.  If the 'nexus_pwd' parameter is encrypted, then place the decryption password in a file named:
 ```
