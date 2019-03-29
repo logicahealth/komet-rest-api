@@ -150,6 +150,11 @@ public class RestPaths
 	public static final String searchComponent = "search/";
 	public static final String searchAPIsPathComponent = apiVersionComponent + searchComponent;
 	public static final String searchAppPathComponent = appPathComponent + searchAPIsPathComponent;
+	
+    public static final String queryComponent = "query/";
+    public static final String queryAPIsPathComponent = apiVersionComponent + queryComponent;
+    public static final String queryAppPathComponent = appPathComponent + queryAPIsPathComponent;
+    public static final String flworComponent = "flwor/";
 
 	public static final String taxonomyAPIsPathComponent = apiVersionComponent + "taxonomy/";
 

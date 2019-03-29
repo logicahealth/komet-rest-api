@@ -53,7 +53,7 @@ public class PaginationUtils
 		{
 			throw new RestException(RequestParameters.pageNum, Integer.toString(pageNum), "invalid parameter value. Must be int >= 1.");
 		}
-		if (maxPageSize < 0)
+		if (maxPageSize < 1)
 		{
 			throw new RestException(RequestParameters.maxPageSize, Integer.toString(maxPageSize), "invalid parameter value. Must be int >= 0.");
 		}

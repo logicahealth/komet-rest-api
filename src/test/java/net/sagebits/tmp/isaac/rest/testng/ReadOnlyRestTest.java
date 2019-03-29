@@ -29,31 +29,42 @@
  */
 package net.sagebits.tmp.isaac.rest.testng;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
+
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.xml.bind.JAXBException;
+
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.grizzly.http.util.Header;
+import org.glassfish.grizzly.utils.Charsets;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import net.sagebits.tmp.isaac.rest.ExpandUtil;
+import net.sagebits.tmp.isaac.rest.api.data.PaginationUtils;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.RestCoordinatesToken;
 import net.sagebits.tmp.isaac.rest.api1.data.RestEditToken;
-import net.sagebits.tmp.isaac.rest.api1.data.RestIdentifiedObjects;
 import net.sagebits.tmp.isaac.rest.api1.data.RestSystemInfo;
 import net.sagebits.tmp.isaac.rest.api1.data.concept.RestConceptChronology;
 import net.sagebits.tmp.isaac.rest.api1.data.coordinate.RestLanguageCoordinate;
@@ -63,6 +74,8 @@ import net.sagebits.tmp.isaac.rest.api1.data.enumerations.DescriptionStyle;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.IdType;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestDescriptionStyle;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestObjectChronologyType;
+import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResult;
+import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResultPage;
 import net.sagebits.tmp.isaac.rest.api1.data.search.RestSearchResult;
 import net.sagebits.tmp.isaac.rest.api1.data.search.RestSearchResultPage;
 import net.sagebits.tmp.isaac.rest.api1.data.semantic.RestDynamicSemanticData;
@@ -77,9 +90,6 @@ import net.sagebits.tmp.isaac.rest.tokens.CoordinatesToken;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesTokens;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
 import sh.isaac.MetaData;
-import sh.isaac.api.Get;
-import sh.isaac.api.component.semantic.SemanticChronology;
-import sh.isaac.api.component.semantic.version.DescriptionVersion;
 import sh.isaac.api.constants.DynamicConstants;
 import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.coordinate.PremiseType;
@@ -206,8 +216,8 @@ public class ReadOnlyRestTest extends BaseTestCode
 		{
 			String resultXmlString = checkFail(
 					target(descriptionSearchRequestPath).queryParam(RequestParameters.query, "dynamic*").queryParam(RequestParameters.expand, "uuid")
-							.queryParam(RequestParameters.maxPageSize, pageSize).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-									.readEntity(String.class);
+					.queryParam(RequestParameters.maxPageSize, pageSize).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
+					.readEntity(String.class);
 
 			NodeList nodeList = XMLUtils.getNodeList(resultXmlString, xpathExpr);
 
@@ -219,8 +229,8 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// Get first page of 7 results
 			String resultXmlString = checkFail(
 					target(descriptionSearchRequestPath).queryParam(RequestParameters.query, "dynamic*").queryParam(RequestParameters.expand, "uuid")
-							.queryParam(RequestParameters.maxPageSize, 7).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-									.readEntity(String.class);
+					.queryParam(RequestParameters.maxPageSize, 7).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
+					.readEntity(String.class);
 			NodeList nodeList = XMLUtils.getNodeList(resultXmlString, xpathExpr);
 			String idOf7thResultOfFirst7ResultPage = nodeList.item(6).getTextContent();
 
@@ -476,9 +486,9 @@ public class ReadOnlyRestTest extends BaseTestCode
 
 		String result = checkFail(
 				target(semanticSearchRequestPath).queryParam(RequestParameters.treatAsString, "false").queryParam(RequestParameters.query, "3")
-						.queryParam(RequestParameters.semanticAssemblageId, DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid().toString())
-						.queryParam(RequestParameters.semanticAssemblageId, MetaData.LOINC_MODULES____SOLOR.getNid() + "").request()
-						.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+				.queryParam(RequestParameters.semanticAssemblageId, DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid().toString())
+				.queryParam(RequestParameters.semanticAssemblageId, MetaData.LOINC_MODULES____SOLOR.getNid() + "").request()
+				.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 
 		Assert.assertTrue(result.contains(DynamicConstants.get().DYNAMIC_COLUMN_DEFAULT_VALUE.getPrimordialUuid().toString()));
 
@@ -519,8 +529,8 @@ public class ReadOnlyRestTest extends BaseTestCode
 
 		String result = checkFail(
 				target(semanticSearchRequestPath).queryParam(RequestParameters.treatAsString, "false").queryParam(RequestParameters.query, "1")
-						.queryParam(RequestParameters.expand, "uuid").request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-								.readEntity(String.class);
+				.queryParam(RequestParameters.expand, "uuid").request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
+				.readEntity(String.class);
 		Assert.assertTrue(pXml.matcher(result).matches());
 
 		result = checkFail(target(semanticSearchRequestPath).queryParam(RequestParameters.treatAsString, "false").queryParam(RequestParameters.query, "1")
@@ -545,7 +555,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 
 		result = checkFail(target(byRefSearchRequestPath).queryParam(RequestParameters.nid, MetaData.SOLOR_CONCEPT____SOLOR.getNid())
 				.queryParam(RequestParameters.expand, "uuid").request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-						.readEntity(String.class);
+				.readEntity(String.class);
 		Assert.assertTrue(pXml.matcher(result).matches());
 
 		result = checkFail(target(byRefSearchRequestPath).queryParam(RequestParameters.nid, MetaData.SOLOR_CONCEPT____SOLOR.getNid()).request()
@@ -572,18 +582,18 @@ public class ReadOnlyRestTest extends BaseTestCode
 
 		String result = checkFail(
 				target(semanticSearchRequestPath).queryParam(RequestParameters.query, DynamicConstants.get().DYNAMIC_COLUMN_NAME.getPrimordialUuid().toString())
-						.queryParam("expand", ExpandUtil.referencedConcept).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-								.readEntity(String.class);
+				.queryParam("expand", ExpandUtil.referencedConcept).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
+				.readEntity(String.class);
 		Assert.assertTrue(result.contains(DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid().toString()));
 
 		result = checkFail(
 				target(semanticSearchRequestPath).queryParam(RequestParameters.query, DynamicConstants.get().DYNAMIC_COLUMN_NAME.getPrimordialUuid().toString())
-						.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 		Assert.assertFalse(result.contains(DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid().toString()));
 
 		result = checkFail(target(descriptionSearchRequestPath).queryParam(RequestParameters.query, "dynamic semantic Asse*")
 				.queryParam(RequestParameters.expand, ExpandUtil.referencedConcept).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-						.readEntity(String.class);
+				.readEntity(String.class);
 		Assert.assertTrue(result.contains(DynamicConstants.get().DYNAMIC_ASSEMBLAGES.getPrimordialUuid().toString()));
 
 		result = checkFail(target(descriptionSearchRequestPath).queryParam(RequestParameters.query, "dynamic Asse*").request()
@@ -592,7 +602,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 
 		result = checkFail(target(prefixSearchRequestPath).queryParam(RequestParameters.query, "dynamic Asse")
 				.queryParam(RequestParameters.expand, ExpandUtil.referencedConcept).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-						.readEntity(String.class);
+				.readEntity(String.class);
 		Assert.assertTrue(result.contains(DynamicConstants.get().DYNAMIC_ASSEMBLAGES.getPrimordialUuid().toString()), "looked in " + result);
 
 		result = checkFail(target(prefixSearchRequestPath).queryParam(RequestParameters.query, "dynamic Asse").request()
@@ -691,7 +701,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			Assert.assertTrue(preDialect.matches("(?s).*<referencedComponent>.*<nid>.*" + MetaData.USER____SOLOR.getNid() + ".*</referencedComponent>.*"),
 					"Wrong concept");
 			Assert.assertTrue(preDialect.matches("(?s).*<caseSignificanceConcept>.*<nid>.*" + MetaData.DESCRIPTION_NOT_CASE_SENSITIVE____SOLOR.getNid()
-					+ ".*</caseSignificanceConcept>.*"), "Wrong case sentivity");
+			+ ".*</caseSignificanceConcept>.*"), "Wrong case sentivity");
 			Assert.assertTrue(
 					preDialect.matches("(?s).*<languageConcept>.*<nid>.*" + MetaData.ENGLISH_LANGUAGE____SOLOR.getNid() + ".*</languageConcept>.*"),
 					"Wrong language");
@@ -699,7 +709,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			Assert.assertTrue((preDialect
 					.matches("(?s).*<descriptionTypeConcept>.*<nid>.*" + MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid() + ".*</descriptionTypeConcept>.*")
 					|| preDialect.matches("(?s).*<descriptionTypeConcept>.*<nid>.*" + MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getNid()
-							+ ".*</descriptionTypeConcept>.*")),
+					+ ".*</descriptionTypeConcept>.*")),
 					"Wrong description type");
 
 			// validate that the dialect bits are put together properly
@@ -829,7 +839,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 
 			result = checkFail((target = target(coordinatesTokenRequestPath,
 					parameters = buildParams(param(RequestParameters.precedence, StampPrecedence.TIME.name()), param(RequestParameters.stated, "false"))))
-							.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedToken = XMLUtils.unmarshalObject(RestCoordinatesToken.class, result);
 			Assert.assertTrue(CoordinatesTokens.getOrCreate(retrievedToken.token).getStampPrecedence() == StampPrecedence.TIME);
 			Assert.assertTrue(CoordinatesTokens.getOrCreate(retrievedToken.token).getTaxonomyType() == PremiseType.INFERRED);
@@ -838,7 +848,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// and getTaxonomyType() == PremiseType.INFERRED
 			result = checkFail(
 					(target = target(taxonomyCoordinateRequestPath, parameters = buildParams(param(RequestParameters.coordToken, retrievedToken.token))))
-							.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedTaxonomyCoordinate = XMLUtils.unmarshalObject(RestManifoldCoordinate.class, result);
 			Assert.assertTrue(retrievedTaxonomyCoordinate.stampCoordinate.precedence.enumId == StampPrecedence.TIME.ordinal());
 			Assert.assertTrue(retrievedTaxonomyCoordinate.stated == false);
@@ -854,7 +864,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			throw new Error(error);
 		}
 	}
-	
+
 	@Test
 	public void testGetCoordinatesDialects()
 	{
@@ -868,43 +878,43 @@ public class ReadOnlyRestTest extends BaseTestCode
 			//with recursion on...
 			String result = checkFail((target = target(requestUrl = coordinatesTokenRequestPath,
 					parameters = buildParams(param(RequestParameters.dialectPrefs, "us,recurse")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			RestCoordinatesToken coordToken = XMLUtils.unmarshalObject(RestCoordinatesToken.class, result);
-	
+
 			//validate the dialects returns in the token
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.coordToken, coordToken.token)))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			RestLanguageCoordinate retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.dialectAssemblagePreferences.length == 2);
 			Assert.assertTrue(retrievedLanguageCoordinate.dialectAssemblagePreferences[0].nid == MetaData.US_ENGLISH_DIALECT____SOLOR.getNid());
 			Assert.assertTrue(retrievedLanguageCoordinate.dialectAssemblagePreferences[1].nid == MetaData.US_NURSING_DIALECT____SOLOR.getNid());
-			
+
 			//recursion off
 			result = checkFail((target = target(requestUrl = coordinatesTokenRequestPath,
 					parameters = buildParams(param(RequestParameters.dialectPrefs, "us")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			coordToken = XMLUtils.unmarshalObject(RestCoordinatesToken.class, result);
-	
+
 			//validate the dialects returns in the token
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.coordToken, coordToken.token)))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.dialectAssemblagePreferences.length == 1);
 			Assert.assertTrue(retrievedLanguageCoordinate.dialectAssemblagePreferences[0].nid == MetaData.US_ENGLISH_DIALECT____SOLOR.getNid());
-			
+
 			//by UUID with recursion
 			result = checkFail((target = target(requestUrl = coordinatesTokenRequestPath,
 					parameters = buildParams(param(RequestParameters.dialectPrefs, 
 							"recurse," + MetaData.KOREAN_DIALECT____SOLOR.getPrimordialUuid().toString())))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			coordToken = XMLUtils.unmarshalObject(RestCoordinatesToken.class, result);
-	
+
 			//validate the dialects returns in the token
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.coordToken, coordToken.token)))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertEquals(retrievedLanguageCoordinate.dialectAssemblagePreferences.length, 2);
 			Assert.assertTrue(retrievedLanguageCoordinate.dialectAssemblagePreferences[0].nid == MetaData.KOREAN_DIALECT____SOLOR.getNid());
@@ -960,7 +970,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 											+ "," + MetaData.SOLOR_MODULE____SOLOR.getNid()),
 							param(RequestParameters.allowedStates,
 									sh.isaac.api.Status.INACTIVE.getAbbreviation() + "," + sh.isaac.api.Status.PRIMORDIAL.getAbbreviation())))).request()
-											.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			xpath = "/restStampCoordinate/time";
 			node = XMLUtils.getNodeFromXml(result, xpath);
 			long stampCoordinateTime = Long.parseLong(node.getTextContent());
@@ -995,14 +1005,14 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// language
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.language, MetaData.ENGLISH_LANGUAGE____SOLOR.getNid())))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			RestLanguageCoordinate retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.language.nid == MetaData.ENGLISH_LANGUAGE____SOLOR.getNid());
 
 			// descriptionTypePrefs
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.descriptionTypePrefs, "fqn,regular")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences.length == 2);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences[0].nid == MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getNid());
@@ -1011,7 +1021,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// descriptionTypePrefs (reversed)
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.descriptionTypePrefs, "regular,fqn")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences.length == 2);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences[0].nid == MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid());
@@ -1021,7 +1031,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// then test token passed as argument along with RequestParameters.stated parameter
 			result = checkFail((target = target(requestUrl = coordinatesTokenRequestPath,
 					parameters = buildParams(param(RequestParameters.descriptionTypePrefs, "regular,fqn")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			final RestCoordinatesToken synonymDescriptionPreferredToken = XMLUtils.unmarshalObject(RestCoordinatesToken.class, result);
 			// Get token with specified default descriptionTypePrefs (FQN,REGULAR_NAME_DESCRIPTION_TYPE____SOLOR)
 			parameters.clear();
@@ -1034,7 +1044,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// parameters used to construct token
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.coordToken, synonymDescriptionPreferredToken.token)))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences.length == 2);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences[0].nid == MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid());
@@ -1045,7 +1055,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			result = checkFail((target = target(requestUrl = languageCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.coordToken, synonymDescriptionPreferredToken.token),
 							param(RequestParameters.stated, "true")))).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-									.readEntity(String.class);
+					.readEntity(String.class);
 			retrievedLanguageCoordinate = XMLUtils.unmarshalObject(RestLanguageCoordinate.class, result);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences.length == 2);
 			Assert.assertTrue(retrievedLanguageCoordinate.descriptionTypePreferences[0].nid == MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid());
@@ -1055,7 +1065,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// test regular as preference
 			result = checkFail((target = target(requestUrl = taxonomyRequestPath,
 					parameters = buildParams(param(RequestParameters.childDepth, 1), param(RequestParameters.descriptionTypePrefs, "regular,fqn")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			xpath = "/restConceptVersion/children/results/conChronology[identifiers/nid=" + MetaData.HEALTH_CONCEPT____SOLOR.getNid() + "]/description";
 			node = XMLUtils.getNodeFromXml(result, xpath);
 			nodeList = null;
@@ -1065,7 +1075,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// test fqn as preference using token
 			result = checkFail((target = target(requestUrl = taxonomyRequestPath,
 					parameters = buildParams(param(RequestParameters.childDepth, 1), param(RequestParameters.coordToken, fqnDescriptionPreferredToken.token))))
-							.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			xpath = "/restConceptVersion/children/results/conChronology[identifiers/nid=" + MetaData.HEALTH_CONCEPT____SOLOR.getNid() + "]/description";
 			node = XMLUtils.getNodeFromXml(result, xpath);
 			nodeList = null;
@@ -1075,7 +1085,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// test fqn as preference
 			result = checkFail((target = target(requestUrl = taxonomyRequestPath,
 					parameters = buildParams(param(RequestParameters.childDepth, 1), param(RequestParameters.descriptionTypePrefs, "fqn,regular")))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			xpath = "/restConceptVersion/children/results/conChronology[identifiers/nid=" + MetaData.HEALTH_CONCEPT____SOLOR.getNid() + "]/description";
 			node = XMLUtils.getNodeFromXml(result, xpath);
 			nodeList = null;
@@ -1085,7 +1095,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// LogicCoordinate
 			result = checkFail((target = target(requestUrl = logicCoordinateRequestPath,
 					parameters = buildParams(param(RequestParameters.classifier, MetaData.SNOROCKET_CLASSIFIER____SOLOR.getNid())))).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			RestLogicCoordinate retrievedLogicCoordinate = XMLUtils.unmarshalObject(RestLogicCoordinate.class, result);
 			Assert.assertTrue(retrievedLogicCoordinate.classifier.nid == MetaData.SNOROCKET_CLASSIFIER____SOLOR.getNid());
 		}
@@ -1121,16 +1131,16 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// Get a semantic chronology by assemblage and extract one of its UUIDs
 			result = checkFail(
 					(target = target(requestUrl = semanticByAssemblageRequestPath + DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid(),
-							parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
-									param(RequestParameters.maxPageSize, 1)))) // Request exactly 1 result
-											.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
+							param(RequestParameters.maxPageSize, 1)))) // Request exactly 1 result
+					.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			RestSemanticVersionPage semanticVersions = XMLUtils.unmarshalObject(RestSemanticVersionPage.class, result);
 			UUID semanticUuid = semanticVersions.results[0].getSemanticChronology().identifiers.getFirst();
 
 			// Test objectChronologyType of specified semantic UUID
 			result = checkFail(
 					(target = target(requestUrl = RestPaths.systemAPIsPathComponent + RestPaths.objectChronologyTypeComponent + semanticUuid.toString()))
-							.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			RestObjectChronologyType objectChronologyType = XMLUtils.unmarshalObject(RestObjectChronologyType.class, result);
 			// Test RestObjectChronologyType name
 			Assert.assertTrue(objectChronologyType.toString().equalsIgnoreCase(IsaacObjectType.SEMANTIC.name()));
@@ -1140,7 +1150,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// Test objectChronologyType of specified concept UUID
 			result = checkFail((target = target(requestUrl = RestPaths.systemAPIsPathComponent + RestPaths.objectChronologyTypeComponent
 					+ MetaData.SOLOR_CONCEPT____SOLOR.getPrimordialUuid().toString())).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML)
-							.get()).readEntity(String.class);
+					.get()).readEntity(String.class);
 			objectChronologyType = XMLUtils.unmarshalObject(RestObjectChronologyType.class, result);
 			// Test RestObjectChronologyType name
 			Assert.assertTrue(objectChronologyType.toString().equalsIgnoreCase(IsaacObjectType.CONCEPT.name()));
@@ -1182,7 +1192,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// Test identifiedObjectsComponent request of specified semantic UUID
 			result = checkFail(
 					(target = target(requestUrl = RestPaths.systemAPIsPathComponent + RestPaths.identifiedObjectsComponent + semanticUuid.toString())).request()
-							.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			identifiedObjectsResult = XMLUtils.unmarshalObject(RestIdentifiedObjectsResult.class, result);
 			// Test RestSemanticChronology
 			Assert.assertTrue(identifiedObjectsResult.getSemanticChronology().identifiers.uuids.contains(semanticUuid));
@@ -1191,7 +1201,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// Test identifiedObjectsComponent request of specified concept UUID
 			result = checkFail((target = target(requestUrl = RestPaths.systemAPIsPathComponent + RestPaths.identifiedObjectsComponent
 					+ MetaData.SOLOR_CONCEPT____SOLOR.getPrimordialUuid().toString())).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML)
-							.get()).readEntity(String.class);
+					.get()).readEntity(String.class);
 			identifiedObjectsResult = XMLUtils.unmarshalObject(RestIdentifiedObjectsResult.class, result);
 			// Test RestSemanticChronology
 			Assert.assertTrue(identifiedObjectsResult.getConcept().getIdentifiers().uuids.contains(MetaData.SOLOR_CONCEPT____SOLOR.getPrimordialUuid()));
@@ -1227,9 +1237,9 @@ public class ReadOnlyRestTest extends BaseTestCode
 			// Test any call with valid parameters
 			result = checkFail(
 					(target = target(requestUrl = semanticByAssemblageRequestPath + DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid(),
-							parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
-									param(RequestParameters.maxPageSize, 1)))) // Request exactly 1 result
-											.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+					parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
+							param(RequestParameters.maxPageSize, 1)))) // Request exactly 1 result
+					.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 
 			// Test same call with a bogus additional parameter
 			String badParamName = "bogusParam";
@@ -1238,9 +1248,9 @@ public class ReadOnlyRestTest extends BaseTestCode
 			{
 				result = checkFail(
 						(target = target(requestUrl = semanticByAssemblageRequestPath + DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid(),
-								parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
-										param(RequestParameters.maxPageSize, 1), param("bogusParam", "testValue")))).request()
-												.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+						parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
+								param(RequestParameters.maxPageSize, 1), param("bogusParam", "testValue")))).request()
+						.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
 			}
 			catch (Throwable t)
 			{
@@ -1257,9 +1267,9 @@ public class ReadOnlyRestTest extends BaseTestCode
 			{
 				result = checkFail(
 						(target = target(requestUrl = semanticByAssemblageRequestPath + DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid(),
-								parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
-										param(badParamName, badParamValue)))).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-												.readEntity(String.class);
+						parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
+								param(badParamName, badParamValue)))).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
+						.readEntity(String.class);
 			}
 			catch (Throwable t)
 			{
@@ -1276,9 +1286,9 @@ public class ReadOnlyRestTest extends BaseTestCode
 			{
 				result = checkFail(
 						(target = target(requestUrl = semanticByAssemblageRequestPath + DynamicConstants.get().DYNAMIC_EXTENSION_DEFINITION.getPrimordialUuid(),
-								parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
-										param(badParamName, badParamValue)))).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
-												.readEntity(String.class);
+						parameters = buildParams(param(RequestParameters.expand, "chronology"), // Expand the chronology
+								param(badParamName, badParamValue)))).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get())
+						.readEntity(String.class);
 			}
 			catch (Throwable t)
 			{
@@ -1475,28 +1485,170 @@ public class ReadOnlyRestTest extends BaseTestCode
 		double count6 = XMLUtils.getNumberFromXml(result6, xPathResults);
 		Assert.assertEquals(count6, (double) 0);
 	}
-	
+
 	//Prefer to run after other tests
 	@Test(groups = "turtle", priority = 50)
 	public void setupBeer() throws IOException
 	{
 		loadBeer();
 	}
-	
+
 	@Test(dependsOnGroups = "turtle")
 	public void testGetDescriptionStyle() throws RestException
 	{
 		String result = checkFail(target(RestPaths.systemAPIsPathComponent + RestPaths.descriptionStyle + MetaData.SNOMED_CT_CORE_MODULES____SOLOR.getNid())
 				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
-		
+
 		Assert.assertEquals(XMLUtils.unmarshalObject(RestDescriptionStyle.class, result).enumName, DescriptionStyle.NATIVE.name());
 
 		String bevonModules = "71ea2fcd-c6bf-50b0-a387-003c17eb84c5";  //from the beer ontology
 		result = checkFail(target(RestPaths.systemAPIsPathComponent + RestPaths.descriptionStyle + bevonModules)
 				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
-		
+
 		Assert.assertEquals(XMLUtils.unmarshalObject(RestDescriptionStyle.class, result).enumName, DescriptionStyle.EXTERNAL.name());
-		
+
 		//TODO need to load something else to test extended types
+	}
+
+	@Test
+	public void testQueryAPIs() throws IOException, JAXBException
+	{
+		// Retrieve valid input XML from file
+		final String testInputFilename = "src/test/resources/testdata/readonlyresttest.testqueryapis.testflworquery.input.flwor";
+		final String flworQueryXml = FileUtils.readFileToString(new File(testInputFilename), Charsets.UTF8_CHARSET);
+
+		// Retrieve expected output XML which should result from valid input
+		final String validTestOutputFilename = "src/test/resources/testdata/readonlyresttest.testqueryapis.testflworquery.output.xml";
+		final String validTestOutputXml = FileUtils.readFileToString(new File(validTestOutputFilename), Charsets.UTF8_CHARSET);
+
+		// Test FLWOR query with valid input, all pages
+		Response response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
+
+		// Ensure request succeeded and retrieve serialized response
+		String receivedResultXml = checkFail(response).readEntity(String.class);
+
+//		System.out.println("FLWOR QUERY RETURNED: " + XmlPrettyPrinter.toString(receivedResultXml));
+//		System.out.println("FLWOR QUERY EXPECTED: " + XmlPrettyPrinter.toString(validTestOutputXml));
+
+		// Deserialize receivedResultJson into receivedResultObject
+		RestQueryResultPage receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
+
+		// Deserialize validTestOutputXml into RestQueryResults
+		RestQueryResultPage expectedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, validTestOutputXml);
+
+		// Compare receivedResultObject to expectedResultObject
+		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), expectedResultObject.getResults()));
+		
+		if (receivedResultObject.getResults().length <= 1) {
+			// If only one result row, then no need to test pagination
+			return;
+		}
+		
+		// If more than 1 result row
+		final RestQueryResult expectedPage1Result = receivedResultObject.getResults()[0];
+		final RestQueryResult expectedPage2Result = receivedResultObject.getResults()[1];
+		
+		// Test FLWOR query with valid input, page 1 of size 1
+		response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent)
+				.queryParam(RequestParameters.pageNum, 1)
+				.queryParam(RequestParameters.maxPageSize, 1)
+				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
+
+		// Ensure request succeeded and retrieve serialized response
+		receivedResultXml = checkFail(response).readEntity(String.class);
+		
+//		System.out.println("FLWOR QUERY RETURNED PAGE 1: " + XmlPrettyPrinter.toString(receivedResultXml));
+//		System.out.println("FLWOR QUERY EXPECTED FIRST ENTRY FROM: " + XmlPrettyPrinter.toString(validTestOutputXml));
+
+		// Deserialize receivedResultJson into receivedResultObject
+		receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
+
+		// Compare receivedResultObject to expectedPage1Result
+		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), new RestQueryResult[] { expectedPage1Result }));
+		
+		// Test FLWOR query with valid unput, page 2 of size 1
+		response = target(RestPaths.queryAPIsPathComponent + RestPaths.flworComponent)
+				.queryParam(RequestParameters.pageNum, 2)
+				.queryParam(RequestParameters.maxPageSize, 1)
+				.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).post(Entity.xml(flworQueryXml));
+
+		// Ensure request succeeded and retrieve serialized response
+		receivedResultXml = checkFail(response).readEntity(String.class);
+
+//		System.out.println("FLWOR QUERY RETURNED PAGE 2: " + XmlPrettyPrinter.toString(receivedResultXml));
+//		System.out.println("FLWOR QUERY EXPECTED SECOND ENTRY FROM: " + XmlPrettyPrinter.toString(validTestOutputXml));
+
+		// Deserialize receivedResultJson into receivedResultObject
+		receivedResultObject = XMLUtils.unmarshalObject(RestQueryResultPage.class, receivedResultXml);
+
+		// Compare receivedResultObject to expectedPage2Result
+		Assert.assertTrue(Arrays.equals(receivedResultObject.getResults(), new RestQueryResult[] { expectedPage2Result }));
+	}
+	
+	/**
+	 * fullResultSize, maxPageSize and pageNum
+	 * @throws RestException 
+	 */
+	@Test
+	public void testPaginationUtil() throws RestException {
+		// Create a fullResult of size 95
+		final int fullResultSize = 95;
+		List<List<String>> fullResult = new LinkedList<>();
+		for (int i = 1; i <= fullResultSize; ++i) {
+			fullResult.add(Arrays.asList(new String[] { i + "", i + "", i + "", i + "", i + "" }));
+		}
+		
+		List<List<String>> page = new LinkedList<>();
+		List<List<String>> expectedResult = new LinkedList<>();
+
+		// Check request for a page in the middle of the fullResult
+		int maxPageSize = 10;
+		int pageNum = 2;
+		page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		Assert.assertTrue(page.size() == maxPageSize);
+		expectedResult = new LinkedList<>();
+		for (int row = 10; row < 20; ++row) {
+			expectedResult.add(fullResult.get(row));
+		}
+		Assert.assertEquals(page, expectedResult);
+
+		// Check request for a page outside of the fullResult
+		maxPageSize = 1000;
+		pageNum = 2;
+		page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		Assert.assertFalse(page.size() > 0);
+
+		// Throw RestException on bad maxPageSize
+		RestException caughtException = null;
+		try {
+			maxPageSize = -1;
+			pageNum = 2;
+			page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		} catch (RestException e) {
+			caughtException = e;
+		}
+		Assert.assertNotNull(caughtException);
+
+		// Throw RestException on bad pageNum
+		caughtException = null;
+		try {
+			maxPageSize = 10;
+			pageNum = 0;
+			page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		} catch (RestException e) {
+			caughtException = e;
+		}
+		Assert.assertNotNull(caughtException);
+
+		// Check for page straddling the end of fullResult
+		maxPageSize = 10;
+		pageNum = 10;
+		page = PaginationUtils.getResults(fullResult, pageNum, maxPageSize);
+		Assert.assertTrue(page.size() == ((maxPageSize * pageNum) - fullResult.size()));
+		expectedResult = new LinkedList<>();
+		for (int row = 90; row < fullResultSize; ++row) {
+			expectedResult.add(fullResult.get(row));
+		}
+		Assert.assertEquals(page, expectedResult);
 	}
 }

@@ -1,0 +1,69 @@
+<Query>
+    <For>
+        <Concept fqn="Paths (SOLOR)" uuids="fd9d47b7-c0a4-3eea-b3ab-2b5a3f9e888f"/>
+    </For>
+    <Let>
+        <map>
+            <entry>
+                <key name="STAMP 1" uuid="e836892c-c408-422c-a51f-e96adfe01752"/>
+                <value xsi:type="stampCoordinateImpl" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <stampCoordinateUuid>cb961834-8389-3c89-ae66-aaad4743b13b</stampCoordinateUuid>
+                    <stampPosition>
+                        <time>Latest</time>
+                        <path fqn="Development path (SOLOR)" uuids="1f200ca6-960e-11e5-8994-feff819cdc9f"/>
+                    </stampPosition>
+                    <allowedStatus>
+                        <StatusList>ACTIVE</StatusList>
+                    </allowedStatus>
+                    <stampPrecedence>PATH</stampPrecedence>
+                    <modules/>
+                    <modulePreferenceOrder/>
+                </value>
+            </entry>
+            <entry>
+                <key name="[US, UK] English" uuid="b6b4287f-eae4-425d-894f-5191f92155a8"/>
+                <value xsi:type="languageCoordinateImpl" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <languageCoordinateUuid>04c3344d-9ade-3b38-93b7-48111a900cb8</languageCoordinateUuid>
+                    <language fqn="English language (SOLOR)" uuids="06d905ea-c647-3af9-bfe5-2514e135b558"/>
+                    <dialectPreference>
+                        <Concept fqn="US English dialect (SOLOR)" uuids="bca0a686-3516-3daf-8fcf-fe396d13cfad"/>
+                        <Concept fqn="GB English dialect (SOLOR)" uuids="eb9a5e42-3cba-356d-b623-3ed472e20b30"/>
+                    </dialectPreference>
+                    <typePreference>
+                        <Concept fqn="Fully qualified name description type (SOLOR)" uuids="00791270-77c9-32b6-b34f-d932569bd2bf 5e1fe940-8faf-11db-b606-0800200c9a66"/>
+                        <Concept fqn="Regular name description type (SOLOR)" uuids="8bfba944-3965-3946-9bcb-1e80a5da63a2 d6fad981-7df6-3388-94d8-238cc0465a79"/>
+                    </typePreference>
+                    <modulePreference>
+                        <Concept fqn="SNOMED CT« core modules (SOLOR)" uuids="1b4f1ba5-b725-390f-8c3b-33ec7096bdca"/>
+                        <Concept fqn="SOLOR overlay module (SOLOR)" uuids="9ecc154c-e490-5cf8-805d-d2865d62aef3"/>
+                        <Concept fqn="SOLOR module (SOLOR)" uuids="f680c868-f7e5-5d0e-91f2-615eca8f8fd2"/>
+                    </modulePreference>
+                </value>
+            </entry>
+        </map>
+    </Let>
+    <Where xsi:type="or" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <assemblageForIteration fqn="Uninitialized component (SOLOR)" uuids="55f74246-0a25-57ac-9473-a788d08fb656"/>
+        <child-clauses>
+            <clause xsi:type="componentIsActive">
+                <assemblageForIteration fqn="Paths (SOLOR)" uuids="fd9d47b7-c0a4-3eea-b3ab-2b5a3f9e888f"/>
+                <stampCoordinateKey name="STAMP 1" uuid="e836892c-c408-422c-a51f-e96adfe01752"/>
+            </clause>
+        </child-clauses>
+    </Where>
+    <Order/>
+    <Return>
+        <AttributeSpecification columnName="Paths assemblage:Primordial UUID" propertyIndex="0">
+            <assemblage fqn="Paths assemblage (SOLOR)" uuids="fd9d47b7-c0a4-3eea-b3ab-2b5a3f9e888f"/>
+            <attributeFunction functionName="Primordial uuid"/>
+            <propertySpecification fqn="Primordial UUID for chronicle (SOLOR)" uuids="e0fcafbc-7191-5cdc-b14a-19d4d97f71bd"/>
+            <stampCoordinateKey name="STAMP 1" uuid="e836892c-c408-422c-a51f-e96adfe01752"/>
+        </AttributeSpecification>
+        <AttributeSpecification columnName="Paths assemblage:Status for version" propertyIndex="2">
+            <assemblage fqn="Paths assemblage (SOLOR)" uuids="fd9d47b7-c0a4-3eea-b3ab-2b5a3f9e888f"/>
+            <attributeFunction functionName="Identity"/>
+            <propertySpecification fqn="Status for version (SOLOR)" uuids="0608e233-d79d-5076-985b-9b1ea4e14b4c"/>
+            <stampCoordinateKey name="STAMP 1" uuid="e836892c-c408-422c-a51f-e96adfe01752"/>
+        </AttributeSpecification>
+    </Return>
+</Query>
