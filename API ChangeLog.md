@@ -15,6 +15,26 @@ Bug fixes should not be documented here, rather, than should be documented in th
 
 *** Don't forget to update the value in the class RestSystemInfo ***
 
+* 2019/03/?? - 1.20.2
+    * Added REST API support for query/flowr.  XML formatted FLOWR queries can be submitted, and returned as XML results. 
+
+* 2019/03/28 - 1.20.1
+    * Moved the codebase over to depending on the uts-auth-api.  No longer works against prisme.
+    * Removed warId from the RestSystemInfo
+    * Removed some role attributes from the Workflow APIs (but those aren't functional right now as it is)
+    * Required edit permissions, or higher, in order to request an edit token
+
+* 2019/02/06 - 1.19.8
+    * Added a user data read/write APIs for clients to use to persist arbitrary data - intended to be used for storing json formatted user prefs, 
+        etc, the sorts of things a GUI needs to be able to store to persist user options. 
+
+* 2019/01/25 - 1.19.7
+    * Reworked the cycle path and equivalent set part of the classifier returns, because the generated enunciate code couldn't handle arrays 
+        nested in lists.
+
+* 2019/01/24 - 1.19.6
+    * Added processedConceptCount to the RestClassifierResult, and changed the data that is put into affectedConcepts and affectedConceptCount.
+
 * 2019/01/22 - 1.19.5
     * Tweak the concept create API so that the automated semantic tag creation doesn't fail if there are two semantic tags, and one 
           of them is the metadata tag "SOLOR".  The metadata tag will be ignored, using the more specific tag.

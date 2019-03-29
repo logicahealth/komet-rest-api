@@ -40,9 +40,8 @@ import net.sagebits.tmp.isaac.rest.api1.data.classifier.ClassifierRunStorage;
 import net.sagebits.tmp.isaac.rest.api1.data.classifier.RestClassifierResult;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.api.util.UUIDUtil;
-import sh.isaac.misc.security.SystemRoleConstants;
 
 /**
  * {@link ClassifierReadAPIs}
@@ -50,8 +49,8 @@ import sh.isaac.misc.security.SystemRoleConstants;
  * @author <a href="mailto:daniel.armbrust.list@gmail.com">Dan Armbrust</a>
  */
 @Path(RestPaths.classifierAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-	SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+		SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class ClassifierReadAPIs
 {
 	@Context
@@ -78,8 +77,6 @@ public class ClassifierReadAPIs
 			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, 
 				RequestParameters.largeResults, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 		
@@ -121,8 +118,6 @@ public class ClassifierReadAPIs
 			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), 
 				RequestParameters.largeResults, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 

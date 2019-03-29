@@ -72,24 +72,6 @@ public class RequestInfoUtils
 		}
 	}
 
-	public static void validateIncompatibleParameters(Map<String, List<String>> params, String... parameterNames) throws RestException
-	{
-		if (parameterNames != null)
-		{
-			for (String parameterName : parameterNames)
-			{
-				for (String conflictingParameterName : parameterNames)
-				{
-					if (!conflictingParameterName.equals(parameterName) && params.containsKey(parameterName) && params.containsKey(conflictingParameterName))
-					{
-						throw new RestException(parameterName, params.get(parameterName) + "",
-								"Parameters " + parameterName + " and " + conflictingParameterName + " are incompatible");
-					}
-				}
-			}
-		}
-	}
-
 	public static UUID parseUuidParameter(String parameterName, List<String> parameterValues) throws RestException
 	{
 		validateSingleParameterValue(parameterName, parameterValues);
@@ -363,5 +345,23 @@ public class RequestInfoUtils
 					"too many (" + editTokenParameterValues.size() + " values - should only be passed with one value");
 		}
 		return Optional.of(editTokenParameterValues.get(0));
+	}
+	
+	/**
+	 * @param allParams
+	 * @param paramName
+	 * @return
+	 */
+	public static String getFirstParameterValue(Map<String, List<String>> allParams, String paramName)
+	{
+		if (allParams.containsKey(paramName))
+		{
+			List<String> values = allParams.get(paramName);
+			if (values.size() > 0)
+			{
+				return values.get(0);
+			}
+		}
+		return null;
 	}
 }

@@ -18,6 +18,7 @@ package net.sagebits.tmp.isaac.rest.testng;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,8 +41,10 @@ import net.sagebits.tmp.isaac.rest.api1.data.RestEditToken;
 import net.sagebits.tmp.isaac.rest.api1.data.RestId;
 import net.sagebits.tmp.isaac.rest.api1.data.semantic.RestSemanticDescriptionVersion;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
+import net.sagebits.tmp.isaac.rest.session.RestUserService;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesToken;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesTokens;
+import net.sagebits.uts.auth.rest.session.AuthRequestParameters;
 import sh.isaac.api.Get;
 import sh.isaac.api.LookupService;
 import sh.isaac.api.coordinate.ManifoldCoordinate;
@@ -78,22 +81,18 @@ public class BaseTestCode
 	public static String TEST_SSO_TOKEN;
 	public static JerseyTest jt;
 	
-	public static void configure(JerseyTestNg jt)
+	public static void configure(JerseyTestNg jt) throws RestException
 	{
 		BaseTestCode.jt = jt;
-		TEST_READ_ONLY_SSO_TOKEN = LookupService.getService(TestPrismeIntegratedUserService.class).usePrismeForRolesByToken() ? 
-				getTokenFromPrisme("readonly@readonly.com", "readonly@readonly.com")
-				: "TestReadOnlyUser:read_only";
-				
-		TEST_SSO_TOKEN = LookupService.getService(TestPrismeIntegratedUserService.class).usePrismeForRolesByToken() ? 
-				getTokenFromPrisme("joel.kniaz@vetsez.com", "joel.kniaz@vetsez.com")
-				: "TestUser:super_user,editor,read_only,approver,administrator,reviewer,vuid_requestor";
-	}
+		
+		Map<String, List<String>> params = new HashMap<>();
+		params.put(AuthRequestParameters.userName, Arrays.asList(new String[] {"readOnly"}));
+		params.put(AuthRequestParameters.password, Arrays.asList(new String[] {"readOnly"}));
+		TEST_READ_ONLY_SSO_TOKEN = LookupService.getService(RestUserService.class).getUser(params, null).get().ssoToken;
 
-	public static String getTokenFromPrisme(String name, String password)
-	{
-		Optional<String> token = LookupService.getService(TestPrismeIntegratedUserService.class).safeGetToken(name, password);
-		return token.get();
+		params.put(AuthRequestParameters.userName, Arrays.asList(new String[] {"admin"}));
+		params.put(AuthRequestParameters.password, Arrays.asList(new String[] {"admin"}));
+		TEST_SSO_TOKEN = LookupService.getService(RestUserService.class).getUser(params, null).get().ssoToken;
 	}
 
 	public CoordinatesToken getDefaultCoordinatesToken() throws RestException
@@ -244,7 +243,7 @@ public class BaseTestCode
 	public String getEditTokenString(String ssoTokenString)
 	{
 		Response getEditTokenResponse = jt.target(editTokenRequestPath.replaceFirst(RestPaths.appPathComponent, ""))
-				.queryParam(RequestParameters.ssoToken, ssoTokenString).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
+				.queryParam(AuthRequestParameters.ssoToken, ssoTokenString).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
 		String getEditTokenResponseResult = checkFail(getEditTokenResponse).readEntity(String.class);
 		RestEditToken restEditTokenObject = XMLUtils.unmarshalObject(RestEditToken.class, getEditTokenResponseResult);
 		return restEditTokenObject.token;
@@ -253,7 +252,7 @@ public class BaseTestCode
 	public String getEditTokenString(String ssoTokenString, int module)
 	{
 		Response getEditTokenResponse = jt.target(editTokenRequestPath.replaceFirst(RestPaths.appPathComponent, ""))
-				.queryParam(RequestParameters.ssoToken, ssoTokenString)
+				.queryParam(AuthRequestParameters.ssoToken, ssoTokenString)
 				.queryParam(RequestParameters.editModule, module).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
 		String getEditTokenResponseResult = checkFail(getEditTokenResponse).readEntity(String.class);
 		RestEditToken restEditTokenObject = XMLUtils.unmarshalObject(RestEditToken.class, getEditTokenResponseResult);

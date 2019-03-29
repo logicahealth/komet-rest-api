@@ -56,6 +56,7 @@ public class ThreadLocalCleanupContainerResponseFilter implements ContainerRespo
 {
 	private static Logger log = LogManager.getLogger();
 	private static Logger slowQueryLog = LogManager.getLogger("net.sagebits.tmp.isaac.rest.SlowQueryLog");
+	private static Logger userQueryLog = LogManager.getLogger("net.sagebits.tmp.isaac.rest.UserLog");
 
 	/**
 	 * {@inheritDoc}
@@ -63,16 +64,19 @@ public class ThreadLocalCleanupContainerResponseFilter implements ContainerRespo
 	@Override
 	public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) throws IOException
 	{
-		log.debug("Removing RequestInfo state in ThreadLocal after server response to client request...");
 		try
 		{
 			RequestInfo ri = RequestInfo.remove();
 			long time = System.currentTimeMillis() - ri.getCreateTime();
-			log.info("{} - Request took {} ms for {}", ri.getUniqueId(), time, requestContext.getUriInfo().getPath(true));
+			log.info("{} - {} - Request took {} ms for {}", ri.getUniqueId(), responseContext.getStatus(), time, requestContext.getUriInfo().getPath(true));
 			if (time > 2000)
 			{
 				slowQueryLog.warn("{} - Request took {} ms for {}", ri.getUniqueId(), time, requestContext.getUriInfo().getPath(true));
 			}
+			userQueryLog.info("{} - {} - {} - {}", ri.getUniqueId(), ri.getUser().isPresent() ? 
+					ri.getUser().get().userId + " - " + ri.getUser().get().userName : "-no user-", 
+					responseContext.getStatus(),
+					requestContext.getUriInfo().getPath(true));
 		}
 		catch (Throwable e)
 		{

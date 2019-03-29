@@ -5,12 +5,12 @@
 	<parent>
 		<groupId>sh.isaac</groupId>
 		<artifactId>isaac</artifactId>
-		<version>4.64-SNAPSHOT</version>
+		<version>4.66-SNAPSHOT</version>
 	</parent>
 
 	<groupId>net.sagebits.uts.rest</groupId>
 	<artifactId>uts-rest-api</artifactId>
-	<version>6.15-SNAPSHOT</version>
+	<version>6.26-SNAPSHOT</version>
 	<packaging>war</packaging>
 
 	<name>ISAAC REST Server</name>
@@ -53,7 +53,7 @@
 			<dependency>
 				<groupId>com.fasterxml.jackson.core</groupId>
 				<artifactId>jackson-databind</artifactId>
-				<version>2.8.11.2</version>  <!-- We need to lock this to the version that jersey expects, rather than the version isaac tries to give us. -->
+				<version>2.8.11.3</version>  <!-- We need to lock this to the version that jersey expects, rather than the version isaac tries to give us. -->
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -122,11 +122,6 @@
 		<dependency>
 			<groupId>sh.isaac.misc</groupId>
 			<artifactId>vhat-util</artifactId>
-			<version>${isaac.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>sh.isaac.misc</groupId>
-			<artifactId>security</artifactId>
 			<version>${isaac.version}</version>
 		</dependency>
 		<dependency>
@@ -324,6 +319,7 @@
 					<reuseForks>true</reuseForks>
 					<parallel>none</parallel>
 					<useManifestOnlyJar>false</useManifestOnlyJar>
+					<threadCount>1</threadCount>
 					<argLine>-ea -d64 -Djava.awt.headless=true</argLine>
 					<!--debugForkedProcess>true</debugForkedProcess -->
 				</configuration>

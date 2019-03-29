@@ -23,8 +23,8 @@ import org.apache.logging.log4j.Logger;
 import sh.isaac.api.util.PasswordHasher;
 
 /**
- * Return a RestConfig object, which has been read from the classpath, by reading the prisme.properties file.
- * If the prisme.properties file isn't present, or can't be read, most of the getters on the RestConfig will return
+ * Return a RestConfig object, which has been read from the classpath, by reading the uts-rest-api.properties file.
+ * If the uts-rest-api.properties file isn't present, or can't be read, most of the getters on the RestConfig will return
  * null.
  * 
  * Encrypted passwords inside the properties are decrypted during this process, using the password from the file
@@ -48,23 +48,12 @@ public class RestConfig
 	private String dbVersion;
 	private String dbClassifier;
 	
-	private String applicationWarFileVersion;
-	private String applicationWarFileUUID;
-	private String applicationWarGroupId;
-	private String applicationWarArtifactId; 
-	private String applicationWarClassifier;
-	private String applicationWarPackage; 
-	
 	private String gitRootURL;
 	private String gitUsername;
 	private char[] gitPassword;
 	
-	private String prismeAllRolesURL;
-	private String prismeRolesByTokenURL;
-	private String prismeRolesUserURL;
-	private String prismeRolesSSOIURL;
-	private String prismeNotifyURL;
-	private String prismeRootURL;
+	private String authURL;
+	private boolean allowAnonRead = false;
 	
 	private RestConfig()
 	{
@@ -74,17 +63,17 @@ public class RestConfig
 
 	private void init()
 	{
-		try (InputStream stream = PrismeServiceUtils.class.getResourceAsStream("/prisme.properties"))
+		try (InputStream stream = RestConfig.class.getResourceAsStream("/uts-rest-api.properties"))
 		{
-			final URL propertiesFile = PrismeServiceUtils.class.getResource("/prisme.properties");
+			final URL propertiesFile = RestConfig.class.getResource("/uts-rest-api.properties");
 			Properties props = new Properties();
 			if (stream == null)
 			{
-				log.info("No prisme.properties file was found on the classpath.  Will start with developer defaults");
+				log.info("No uts-rest-api.properties file was found on the classpath.  Will start with developer defaults");
 			}
 			else
 			{
-				log.info("Reading PRISME configuration from prisme.properties file " + propertiesFile);
+				log.info("Reading PRISME configuration from uts-rest-api.properties file " + propertiesFile);
 				props.load(stream);
 			}
 			
@@ -98,27 +87,20 @@ public class RestConfig
 			dbVersion = props.getProperty("db_version");
 			dbClassifier = props.getProperty("db_classifier");
 			
-			applicationWarFileVersion = props.getProperty("war_version");
-			applicationWarFileUUID = props.getProperty("war_uuid");
-			applicationWarGroupId = props.getProperty("war_group_id");
-			applicationWarArtifactId = props.getProperty("war_artifact_id");
-			applicationWarClassifier = props.getProperty("war_classifier");
-			applicationWarPackage = props.getProperty("war_package");
-			
 			gitRootURL = props.getProperty("git_root");
 			gitUsername = props.getProperty("git_user", "");
 			gitPassword = PasswordHasher.decryptPropFileValueIfEncrypted(props.getProperty("git_pwd"));
 			
-			prismeAllRolesURL = props.getProperty("prisme_all_roles_url");
-			prismeRolesByTokenURL = props.getProperty("prisme_roles_by_token_url");
-			prismeRolesUserURL = props.getProperty("prisme_roles_user_url");
-			prismeRolesSSOIURL = props.getProperty("prisme_roles_ssoi_url");
-			prismeNotifyURL = props.getProperty("prisme_notify_url");
-			prismeRootURL = props.getProperty("prisme_root");
+			authURL = props.getProperty("auth_url", "");
+			
+			if (props.getProperty("anonymous_read") != null)
+			{
+				allowAnonRead = Boolean.parseBoolean(props.getProperty("anonymous_read"));
+			}
 		}
 		catch (Exception e)
 		{
-			String msg = "Unexpected error trying to read properties from the prisme.properties file";
+			String msg = "Unexpected error trying to read properties from the uts-rest-api.properties file";
 			log.error(msg, e);
 			throw new RuntimeException(msg, e);
 		}
@@ -168,36 +150,6 @@ public class RestConfig
 		return dbClassifier;
 	}
 
-	public String getApplicationWarFileVersion()
-	{
-		return applicationWarFileVersion;
-	}
-
-	public String getApplicationWarFileUUID()
-	{
-		return applicationWarFileUUID;
-	}
-
-	public String getApplicationWarGroupId()
-	{
-		return applicationWarGroupId;
-	}
-
-	public String getApplicationWarArtifactId()
-	{
-		return applicationWarArtifactId;
-	}
-
-	public String getApplicationWarClassifier()
-	{
-		return applicationWarClassifier;
-	}
-
-	public String getApplicationWarPackage()
-	{
-		return applicationWarPackage;
-	}
-
 	public String getGitRootURL()
 	{
 		return gitRootURL;
@@ -213,34 +165,13 @@ public class RestConfig
 		return gitPassword;
 	}
 
-	public String getPrismeAllRolesURL()
+	public String getAuthURL()
 	{
-		return prismeAllRolesURL;
+		return authURL;
 	}
 
-	public String getPrismeRolesByTokenURL()
+	public boolean allowAnonymousRead()
 	{
-		return prismeRolesByTokenURL;
+		return allowAnonRead;
 	}
-
-	public String getPrismeRolesUserURL()
-	{
-		return prismeRolesUserURL;
-	}
-
-	public String getPrismeRolesSSOIURL()
-	{
-		return prismeRolesSSOIURL;
-	}
-
-	public String getPrismeNotifyURL()
-	{
-		return prismeNotifyURL;
-	}
-
-	public String getPrismeRootURL()
-	{
-		return prismeRootURL;
-	}
-
 }

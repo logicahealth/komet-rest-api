@@ -32,8 +32,8 @@ package net.sagebits.tmp.isaac.rest.session;
 
 import java.security.Principal;
 import javax.ws.rs.core.SecurityContext;
-import sh.isaac.misc.security.SystemRole;
-import sh.isaac.misc.security.User;
+import net.sagebits.uts.auth.rest.api1.data.RestUser;
+import net.sagebits.uts.auth.rest.api1.enumerations.RestUserRoleType;
 
 /**
  * 
@@ -44,10 +44,10 @@ import sh.isaac.misc.security.User;
  */
 public class RestApplicationSecurityContext implements SecurityContext
 {
-	private User user;
+	private RestUser user;
 	private String scheme;
 
-	public RestApplicationSecurityContext(User user, String scheme)
+	public RestApplicationSecurityContext(RestUser user, String scheme)
 	{
 		this.user = user;
 		this.scheme = scheme;
@@ -57,14 +57,24 @@ public class RestApplicationSecurityContext implements SecurityContext
 	 * (non-Javadoc)
 	 * 
 	 * @see javax.ws.rs.core.SecurityContext#getUserPrincipal()
-	 * 
-	 * This should never return null, as RequestInfo sets a default read_only User
-	 * if no SSO token or EditToken passed.
 	 */
 	@Override
 	public Principal getUserPrincipal()
 	{
-		return this.user;
+		return user == null ? null : new Principal()
+		{
+			@Override
+			public String getName()
+			{
+				return user.userName;
+			}
+
+			@Override
+			public String toString()
+			{
+				return getName();
+			}
+		};
 	}
 
 	@Override
@@ -74,9 +84,9 @@ public class RestApplicationSecurityContext implements SecurityContext
 		{
 			return false;
 		}
-		for (SystemRole role : user.getRoles())
+		for (RestUserRoleType role : user.effectiveRoles)
 		{
-			if (role.toString().equalsIgnoreCase(s))
+			if (role.friendlyName.equalsIgnoreCase(s))
 			{
 				return true;
 			}

@@ -61,7 +61,7 @@ import net.sagebits.tmp.isaac.rest.api1.data.enumerations.IdType;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestSupportedIdType;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.MetaData;
 import sh.isaac.api.ConceptProxy;
 import sh.isaac.api.Get;
@@ -75,7 +75,6 @@ import sh.isaac.api.coordinate.LanguageCoordinate;
 import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.api.util.NumericUtils;
 import sh.isaac.api.util.UUIDUtil;
-import sh.isaac.misc.security.SystemRoleConstants;
 import sh.isaac.model.coordinate.LanguageCoordinateImpl;
 import sh.isaac.utility.Frills;
 
@@ -85,8 +84,8 @@ import sh.isaac.utility.Frills;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.idAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class IdAPIs
 {
 	private static Logger log = LogManager.getLogger();
@@ -120,8 +119,6 @@ public class IdAPIs
 			@QueryParam(RequestParameters.outputType) @DefaultValue("uuid") String outputType, @QueryParam(RequestParameters.coordToken) String coordToken)
 			throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.inputType,
 				RequestParameters.outputType, RequestParameters.COORDINATE_PARAM_NAMES);
 
@@ -235,8 +232,6 @@ public class IdAPIs
 	@Path(RestPaths.idTypesComponent)
 	public RestSupportedIdType[] getSupportedTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestSupportedIdType.getAll();
@@ -262,8 +257,6 @@ public class IdAPIs
 	@Path(RestPaths.idsComponent)
 	public RestConceptChronology[] getSupportedIdConcepts() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
 				RequestParameters.COORDINATE_PARAM_NAMES);
 

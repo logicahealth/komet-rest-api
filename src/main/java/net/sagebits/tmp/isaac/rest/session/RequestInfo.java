@@ -42,17 +42,21 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.ws.rs.container.ContainerRequestContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
+import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestSupportedIdType;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesToken;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesTokens;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
+import net.sagebits.uts.auth.data.User;
+import net.sagebits.uts.auth.data.UserRole;
+import net.sagebits.uts.auth.rest.api1.data.RestUser;
 import sh.isaac.MetaData;
 import sh.isaac.api.Get;
-import sh.isaac.api.LookupService;
 import sh.isaac.api.Status;
 import sh.isaac.api.bootstrap.TermAux;
 import sh.isaac.api.collections.NidSet;
@@ -63,9 +67,7 @@ import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.api.coordinate.StampCoordinate;
 import sh.isaac.api.coordinate.StampPrecedence;
-import sh.isaac.misc.security.SystemRole;
-import sh.isaac.misc.security.User;
-import sh.isaac.model.configuration.EditCoordinates;
+import sh.isaac.api.util.UuidT5Generator;
 import sh.isaac.model.coordinate.EditCoordinateImpl;
 import sh.isaac.utility.Frills;
 
@@ -90,7 +92,7 @@ public class RequestInfo
 
 	private String coordinatesToken_ = null;
 
-	private Optional<User> user_ = null;
+	private Optional<RestUser> user_ = null;
 	private EditToken editToken_ = null;
 	private long createTime_;
 	private long requestId_;
@@ -180,18 +182,36 @@ public class RequestInfo
 		return returnValue;
 	}
 
-	public RequestInfo readAll(Map<String, List<String>> parameters) throws Exception
+	/**
+	 * This populates the user for the request, if possible.
+	 * @param parameters
+	 * @param requestContext 
+	 * @return
+	 * @throws Exception
+	 */
+	public RequestInfo readAll(Map<String, List<String>> parameters, ContainerRequestContext requestContext) throws Exception
 	{
 		parameters_.clear();
 		for (Map.Entry<String, List<String>> entry : parameters.entrySet())
 		{
 			parameters_.put(entry.getKey(), Collections.unmodifiableList(entry.getValue()));
 		}
-
-		// Log value of ssoToken parameter, if any
-		if (parameters_.get(RequestParameters.ssoToken) != null && parameters_.get(RequestParameters.ssoToken).size() == 1)
+		
+		//populate the user, if possible, and the editToken, if possible (only when an encoded token is provided)
+		user_ = Get.service(RestUserService.class).getUser(parameters_, getEditToken());
+		
+		if (!user_.isPresent())
 		{
-			log.info(RequestParameters.ssoToken + "==\"" + parameters_.get(RequestParameters.ssoToken).iterator().next() + "\"");
+			String path = requestContext.getUriInfo().getPath(true);
+			//TODO remove this once again, when we have a way to pre-popluate a user with AUTOMATED role permissions to the web-editor
+			//Allow version info to be retrieved - but assign a userID to the request, if we don't have one
+			if ((RestPaths.systemAPIsPathComponent + RestPaths.systemInfoComponent).startsWith(path))
+			{
+				log.info("Generating a read-only user for system info read");
+				user_ = Optional.of(
+						new RestUser(new User(UuidT5Generator.get(UuidT5Generator.PATH_ID_FROM_FS_DESC, "INFO-READ"), "INFO-READ", "system info read", 
+								new UserRole[] { UserRole.READ }, null), null, false));
+			}
 		}
 
 		readExpandables(parameters);
@@ -338,20 +358,9 @@ public class RequestInfo
 		return user_ != null && user_.isPresent();
 	}
 
-	public void setDefaultReadOnlyUser()
+	public Optional<RestUser> getUser() throws RestException
 	{
-		user_ = Optional.of(new User("READ_ONLY_USER", MetaData.USER____SOLOR.getPrimordialUuid(), null, SystemRole.READ_ONLY));
-		LookupService.get().getService(UserProvider.class).addUser(user_.get());
-	}
-
-	public Optional<sh.isaac.misc.security.User> getUser() throws RestException
-	{
-		if (user_ == null)
-		{
-			user_ = Optional.of(getEditToken().getUser());
-		}
-
-		return user_;
+		return user_ == null ? Optional.empty() : user_;
 	}
 
 	/**
@@ -365,20 +374,12 @@ public class RequestInfo
 		{
 			try
 			{
-				// FAIL if ssoToken and editToken parameters both set
-				// FAIL if userId and editToken parameters both set
-				// FAIL if userId and ssoToken parameters both set
-				RequestInfoUtils.validateIncompatibleParameters(parameters_, RequestParameters.editToken, RequestParameters.ssoToken, RequestParameters.userId);
-
 				Integer module = null;
 				Integer path = null;
 				UUID workflowProcessid = null;
 
-				EditCoordinate defaultEditCoordinate = getDefaultEditCoordinate();
-
 				// Set default EditToken parameters to values in passedEditToken if set, otherwise set to default
 				Optional<String> passedEditTokenSerialized = RequestInfoUtils.getEditTokenParameterStringValue(parameters_);
-				PrismeUserService userService = LookupService.getService(PrismeUserService.class);
 
 				if (passedEditTokenSerialized.isPresent())
 				{
@@ -409,145 +410,9 @@ public class RequestInfo
 
 					passedEditToken.updateValues(module, path, workflowProcessid);
 
-					User userFromPassedEditToken = passedEditToken.getUser();
-
-					if (!userFromPassedEditToken.rolesStillValid())
-					{
-						if (userService.usePrismeForRolesByToken())
-						{
-							log.info("Rechecking roles for user '{}' because its '{}' and roles were last checked at '{}' ", userFromPassedEditToken.getName(),
-									System.currentTimeMillis(), userFromPassedEditToken.rolesCheckedAt());
-							try
-							{
-								// we don't need to call updateRoles here, because prismeServiceUtils updates the user cache, when it does a prisme
-								// read.
-								userService.getUser(userFromPassedEditToken.getSSOToken().get());
-								log.debug("Roles updated: " + passedEditToken.getUser().toString());
-							}
-							catch (Exception e)
-							{
-								log.error("Failed to refresh roles", e);
-								throw new RestException("Failed to revalidate roles");
-							}
-						}
-						else
-						{
-							// if we aren't using prisme, roles can't expire...
-							passedEditToken.getUser().updateRoles(passedEditToken.getUser().getRoles().toArray(new SystemRole[0]));
-						}
-					}
 					editToken_ = passedEditToken;
-					user_ = Optional.of(passedEditToken.getUser());
+					log.debug("Populated EditToken '{}' into RequestInfo", editToken_);
 				}
-				else
-				{
-					// No valid EditToken passed as parameter
-					Optional<User> userOptional = Optional.empty();
-
-					// IF prisme.properties properties found then MUST use SSO token
-					if (userService.usePrismeForRolesByToken())
-					{
-						// FAIL if userId parameter set
-						if (parameters_.containsKey(RequestParameters.userId))
-						{
-							throw new SecurityException(new RestException(RequestParameters.userId, parameters_.get(RequestParameters.userId) + "",
-									"Cannot specify userId parameter when PRISME configured"));
-						}
-						log.debug("Constructing new EditToken from User from PRISME with SSO token {}", parameters_.get(RequestParameters.ssoToken));
-						// Validate ssoToken parameter
-						RequestInfoUtils.validateSingleParameterValue(parameters_, RequestParameters.ssoToken);
-						userOptional = userService.getUser(parameters_.get(RequestParameters.ssoToken).iterator().next());
-					}
-					else
-					{
-						// IF prisme.properties properties NOT found or does not specify the prisme roles URL
-
-						// Check for passed userId parameter, which can either be a concept id (UUID or nid),
-						// the string "DEFAULT", or a valid existing username
-						if (parameters_.containsKey(RequestParameters.userId))
-						{
-							log.info("Constructing new EditToken from test User with ALL ROLES with passed userId {}",
-									parameters_.get(RequestParameters.userId));
-							// Validate userId parameter
-							RequestInfoUtils.validateSingleParameterValue(parameters_, RequestParameters.userId);
-							String userIdParameterValue = parameters_.get(RequestParameters.userId).iterator().next();
-							Integer userConceptNid = null;
-							if (userIdParameterValue.equalsIgnoreCase("DEFAULT"))
-							{
-								userConceptNid = EditCoordinates.getDefaultUserMetadata().getAuthorNid();
-							}
-							if (userConceptNid == null)
-							{
-								try
-								{
-									// Attempt to parse as concept id
-									userConceptNid = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.userId, userIdParameterValue);
-								}
-								catch (Exception e)
-								{}
-							}
-							if (userConceptNid == null)
-							{
-								try
-								{
-									// Attempt to retrieve UUID generated by hashing the passed string
-									// as an FQN, which must be in the MetaData.USER UUID domain
-									userConceptNid = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.userId,
-											UserProvider.getUuidFromUserName(userIdParameterValue).toString());
-								}
-								catch (Exception e)
-								{}
-							}
-
-							if (userConceptNid == null)
-							{
-								throw new RestException(RequestParameters.userId, userIdParameterValue,
-										"Unable to determine test User concept nid from parameter.  Must be a concept id, an existing User FQN, or the (case insensitive)"
-												+ " word \"DEFAULT\"");
-							}
-
-							String userName = Get.conceptDescriptionText(userConceptNid);
-							userOptional = Optional
-									.of(new User(userName, Get.identifierService().getUuidPrimordialForNid(userConceptNid), "", SystemRole.values()));
-							LookupService.get().getService(UserProvider.class).addUser(userOptional.get());
-						}
-						else
-						{
-							if (parameters_.containsKey(RequestParameters.ssoToken))
-							{
-								RequestInfoUtils.validateSingleParameterValue(parameters_, RequestParameters.ssoToken);
-								userOptional = userService.getUser(parameters_.get(RequestParameters.ssoToken).iterator().next());
-							}
-						}
-					}
-
-					if (parameters_.containsKey(RequestParameters.processId))
-					{
-						RequestInfoUtils.validateSingleParameterValue(parameters_, RequestParameters.processId);
-						workflowProcessid = RequestInfoUtils.parseUuidParameter(RequestParameters.processId,
-								parameters_.get(RequestParameters.processId).iterator().next());
-					}
-					if (parameters_.containsKey(RequestParameters.editModule))
-					{
-						module = RequestInfoUtils.getConceptNidFromParameter(parameters_, RequestParameters.editModule);
-					}
-					if (parameters_.containsKey(RequestParameters.editPath))
-					{
-						path = RequestInfoUtils.getConceptNidFromParameter(parameters_, RequestParameters.editPath);
-					}
-
-					// Must have EditToken, SSO token (real or parsable, if in src/test) or userId in order to get author
-					user_ = userOptional;
-					if (user_ == null || !user_.isPresent())
-					{
-						throw new RestException("Edit token cannot be constructed without user information!");
-					}
-					editToken_ = new EditToken(UserProvider.getAuthorNid(user_.get()),
-							module != null ? module : defaultEditCoordinate.getModuleNid(), path != null ? path : defaultEditCoordinate.getPathNid(),
-							workflowProcessid);
-				}
-
-				log.debug("Populated EditToken '{}' into RequestInfo", editToken_);
 			}
 			catch (RestException e)
 			{
@@ -576,6 +441,10 @@ public class RequestInfo
 	{
 		if (editCoordinate_ == null)
 		{
+			if (getEditToken() == null)
+			{
+				throw new RestException("No edit token was passed, edit coordinate is unavailable");
+			}
 			editCoordinate_ = new EditCoordinateImpl(getEditToken().getAuthorNid(), getEditToken().getModuleNid(), getEditToken().getPathNid());
 		}
 

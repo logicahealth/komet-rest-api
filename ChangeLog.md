@@ -3,6 +3,31 @@ ISAAC-rest Changelog
 This changelog summarizes changes and fixes which are a part of each revision.  For more details on the fixes, refer tracking numbers where provided, and the git commit history.  Note that this is not the same as the API Changelog.md.  This file will contain information on all changes - including bug fixes.  The API Changelog will only contain documentation on changes of the API - and those are tied to the 
 API version number, not the release version number.
 
+* 2019/03/28 - 6.25
+    * Lots of internal changes to migrate auth over to the new uts-auth-api code.
+    * Used a more standard approach for validating authentication
+    * Cleanup of property / config file naming.  The file to configure this server is now uts-rest-api.properties.  src/test/resources contains a 
+        documented example.
+    * Allowed anonymous read to the system/systemImfo call even when anonymous read is disabled elsewhere - this may be changed again in the future.
+        But before that can happen, we need to have keys for a AUTOMATED user populated into the web-editor.
+
+* 2019/02/06 - 6.24
+    * added an api for storing user prefs, etc
+
+* 2019/01/25 - 6.23
+    * fixing the classifier return results
+    * better debug output on classification runs
+
+* 2019/01/24 - 6.22
+    * updates to classifier results handling
+
+* 2019/01/22 - 6.21
+    * Fixed bug with terminology type lookup (in core)
+    * Fixed bugs with DB build process that was leading to runtime errors and bad hierarchy on certain concepts
+    * API tweaks to createConcept, to make it more permissive during semantic tag creation with snomed concepts that co-exist in metadata.
+    * Fix a bug with mapset update where we mis-handled the optional displayField and failed to process an update if it wasn't provided.
+    * Handling for more ID types, new options for returning alternate IDs.
+
 * 2019/01/10 - 6.20
     * Fix a regression with the handling of name, inverse name and description on mapsets, related to external description types.
     * Fix a bug with update of mapping items where null's in the data arraylist lead to a null pointer.

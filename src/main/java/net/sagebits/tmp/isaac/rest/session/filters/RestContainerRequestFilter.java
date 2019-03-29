@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Priority;
 import javax.ws.rs.HttpMethod;
 import javax.ws.rs.Priorities;
@@ -42,6 +43,7 @@ import javax.ws.rs.container.ContainerRequestFilter;
 import javax.ws.rs.ext.Provider;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
@@ -49,7 +51,8 @@ import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
 import net.sagebits.tmp.isaac.rest.session.RestApplicationSecurityContext;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
-import sh.isaac.misc.security.User;
+import net.sagebits.uts.auth.rest.api1.data.RestUser;
+import net.sagebits.uts.auth.rest.session.AuthRequestParameters;
 
 /**
  * 
@@ -57,15 +60,14 @@ import sh.isaac.misc.security.User;
  *
  * @author <a href="mailto:joel.kniaz.list@gmail.com">Joel Kniaz</a>
  *
- *         Initializes RequestInfo ThreadLocal if necessary and initializes
- *         StampCoordinate and LanguageCoordinate based on intercepted query parameters,
- *         or default values if no relevant parameters are present.
+ * Initializes RequestInfo ThreadLocal if necessary and initializes StampCoordinate and LanguageCoordinate based on intercepted 
+ * query parameters, or default values if no relevant parameters are present.
  * 
- *         Priority is set to Priorities.USER - 500
- *         to ensure that this filter is run before other user filters
+ * Priority is set to Priorities.AUTHENTICATION - 1000 to ensure that this filter is run before other user filters, and puts 
+ * the user info in earlier than the {@link RolesAllowedDynamicFeature} runs at.
  * 
  */
-@Priority(Priorities.AUTHORIZATION)
+@Priority(Priorities.AUTHENTICATION)
 @Provider
 public class RestContainerRequestFilter implements ContainerRequestFilter
 {
@@ -89,11 +91,16 @@ public class RestContainerRequestFilter implements ContainerRequestFilter
 		}
 
 		// Get user
-		User user = RequestInfo.get().getUser().get();
+		Optional<RestUser> user = RequestInfo.get().getUser();
+		
+		if (!user.isPresent())
+		{
+			throw new RestException("No user information was supplied, and anonymous read access to this service is disabled");
+		}
 
 		// Configure Security Context here
 		String scheme = requestContext.getUriInfo().getRequestUri().getScheme();
-		requestContext.setSecurityContext(new RestApplicationSecurityContext(user, scheme));
+		requestContext.setSecurityContext(new RestApplicationSecurityContext(user.get(), scheme));
 	}
 
 	/**
@@ -109,25 +116,23 @@ public class RestContainerRequestFilter implements ContainerRequestFilter
 			LOG.debug("{} - Path parameters: {}", RequestInfo.get().getUniqueId(), requestContext.getUriInfo().getPathParameters().keySet());
 			for (Map.Entry<String, List<String>> parameter : requestContext.getUriInfo().getPathParameters().entrySet())
 			{
-				LOG.debug("{} - Path parameter \"{}\"=\"{}\"", RequestInfo.get().getUniqueId(), parameter.getKey(), parameter.getValue());
+				LOG.debug("{} - Path parameter \"{}\"=\"{}\"", RequestInfo.get().getUniqueId(), parameter.getKey(), 
+						parameter.getKey().equals(AuthRequestParameters.password) ? "***" : parameter.getValue());
 			}
 		}
 
-		// Note, this call, DECODES all of the parameters. But we shouldn't decode ssoToken.
+		// Note, this call, DECODES all of the parameters. These days, it should be safe to decode the ssoToken / editToken, because they are base64 url-safe encoded.
+		//decoding them will do no harm, if they were not encoded, and they need to be decoded if someone did form-encode them.
 		HashMap<String, List<String>> queryParams = new HashMap<>();
 		queryParams.putAll(requestContext.getUriInfo().getQueryParameters());
-		if (queryParams.containsKey(RequestParameters.ssoToken))
-		{
-			// grab the unmolested ssoToken, so we don't cause inadvertent parse issues in prisme
-			queryParams.put(RequestParameters.ssoToken, requestContext.getUriInfo().getQueryParameters(false).get(RequestParameters.ssoToken));
-		}
 
 		if (queryParams.size() > 0)
 		{
 			LOG.debug("{} - Query parameters: {}", RequestInfo.get().getUniqueId(), queryParams.keySet());
 			for (Map.Entry<String, List<String>> parameter : queryParams.entrySet())
 			{
-				LOG.debug("{} - Query parameter \"{}\"=\"{}\"", RequestInfo.get().getUniqueId(), parameter.getKey(), parameter.getValue());
+				LOG.debug("{} - Query parameter \"{}\"=\"{}\"", RequestInfo.get().getUniqueId(), parameter.getKey(), 
+						parameter.getKey().equals(AuthRequestParameters.password) ? "***" : parameter.getValue());
 			}
 		}
 
@@ -139,7 +144,7 @@ public class RestContainerRequestFilter implements ContainerRequestFilter
 
 		try
 		{
-			RequestInfo.get().readAll(queryParams);
+			RequestInfo.get().readAll(queryParams, requestContext);
 
 			// If they are asking for an edit token, or attempting to do a write, we need a valid editToken.
 			if (requestContext.getUriInfo().getPath().contains(RestPaths.writePathComponent)
@@ -148,27 +153,27 @@ public class RestContainerRequestFilter implements ContainerRequestFilter
 			{
 
 				EditToken et = RequestInfo.get().getEditToken();
-
-				if (requestContext.getUriInfo().getPath().contains(RestPaths.writePathComponent)
-						// VuidWriteAPIs does not require or return an EditCoordinate,
-						// so calling isValidForWrite(), which invalidates the existing token, requiring its renewal,
-						// will break things. Therefore, do not call isValidForWrite() for vuidAPIsPathComponent
-						&& !requestContext.getUriInfo().getPath().contains(RestPaths.vuidAPIsPathComponent))
+				
+				if (et != null)  //If they are requesting an editToken, there may not yet be one.
 				{
-
-					// If it is a write request, the edit token needs to be valid for write.
-					if (!et.isValidForWrite())
+					if (requestContext.getUriInfo().getPath().contains(RestPaths.writePathComponent)
+							// VuidWriteAPIs does not require or return an EditCoordinate,
+							// so calling isValidForWrite(), which invalidates the existing token, requiring its renewal,
+							// will break things. Therefore, do not call isValidForWrite() for vuidAPIsPathComponent
+							// Likewise with the user data store reads - they need a token for the user name, but don't do a write, 
+							// and don't return an updated token.
+							&& !requestContext.getUriInfo().getPath().contains(RestPaths.vuidAPIsPathComponent)
+							&& !requestContext.getUriInfo().getPath().contains(RestPaths.userDataStorePathComponent))
 					{
-						throw new IOException("Edit Token is no longer valid for write - please renew the token.");
+	
+						// If it is a write request, the edit token needs to be valid for write.
+						if (!et.isValidForWrite())
+						{
+							throw new IOException("Edit Token is no longer valid for write - please renew the token.");
+						}
 					}
+					RequestInfo.get().getEditCoordinate();
 				}
-				RequestInfo.get().getEditCoordinate();
-			}
-			else
-			{
-				// Set a default read_only user for clients that do not pass SSO token or EditToken
-				// The user has a name of "READ_ONLY_USER," a null UUID id and only the read only role
-				RequestInfo.get().setDefaultReadOnlyUser();
 			}
 
 			authenticate(requestContext); // Apply after readAll() in order to populate User, if possible

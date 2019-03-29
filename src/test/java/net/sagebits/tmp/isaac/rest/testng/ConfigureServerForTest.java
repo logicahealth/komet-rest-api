@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import javax.ws.rs.core.Application;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.test.JerseyTestNg;
 import org.testng.Assert;
 import org.testng.annotations.AfterSuite;
@@ -30,6 +31,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
 import net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner;
+import net.sagebits.uts.auth.data.User;
+import net.sagebits.uts.auth.data.UserRole;
+import net.sagebits.uts.auth.users.UserService;
 import sh.isaac.MetaData;
 import sh.isaac.api.Get;
 import sh.isaac.api.LookupService;
@@ -54,6 +58,8 @@ import sh.isaac.misc.modules.vhat.VHATIsAHasParentSynchronizingChronologyChangeL
 public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 {
 	private static Logger log = LogManager.getLogger(ReadOnlyRestTest.class);
+	
+	File userStoreFile;
 
 	@Override
 	protected Application configure()
@@ -65,7 +71,9 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 			RecursiveDelete.delete(file);
 			file.mkdirs();
 			System.setProperty(DATA_STORE_ROOT_LOCATION_PROPERTY, "target/test.data");
-			return LocalGrizzlyRunner.configureJerseyServer();
+			ResourceConfig rc = LocalGrizzlyRunner.configureJerseyServer();
+			rc.setApplicationName("testing1234");
+			return rc;
 		}
 		catch (Exception e)
 		{
@@ -83,8 +91,19 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 			{
 				Thread.sleep(50);
 			}
+
+			userStoreFile = new File(new File(System.getProperty("java.io.tmpdir")), "rest-test-users.json");
+			
+			//Create a user service, make sure these users are in it, then toss it.  They will get read again when the RestUserServiceLocal starts
+			UserService us = new UserService(userStoreFile, false);
+			User u = new User(UuidT5Generator.get("readOnly"), "readOnly", "read only", new UserRole[] {UserRole.READ}, null);
+			u.setPassword("readOnly".toCharArray());
+			us.addOrUpdate(u);
+			u = new User(UuidT5Generator.get("admin"), "admin", "admin", new UserRole[] {UserRole.READ, UserRole.ADMINISTRATOR}, null);
+			u.setPassword("admin".toCharArray());
+			us.addOrUpdate(u);
+			us = null;
 	
-			BaseTestCode.configure(this);
 			BinaryDataReaderService reader = Get.binaryDataReader(Paths.get("target", "data", "IsaacMetadataAuxiliary.ibdf"));
 			CommitService commitService = Get.commitService();
 			reader.getStream().forEach((object) -> {
@@ -95,6 +114,7 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 			Get.startIndexTask((Class<IndexBuilderService>[]) null).get();
 
 			createVHATHasParentAssociation();
+			BaseTestCode.configure(this);
 		}
 		catch (FileNotFoundException | InterruptedException | ExecutionException e)
 		{
@@ -106,8 +126,6 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 	// VHAT-specific metadata
 	private void createVHATHasParentAssociation() throws Exception
 	{
-		File debugOutput = new File(System.getProperty("java.io.tmpdir") + System.getProperty("file.separator") + "restTestVHATMetaDataImportDebug");
-		debugOutput.mkdir();
 		ConverterUUID converterUUID = new ConverterUUID(UuidT5Generator.PATH_ID_FROM_FS_DESC, false);
 		
 		DirectWriteHelper dwh = new DirectWriteHelper(TermAux.USER.getNid(), MetaData.VHAT_MODULES____SOLOR.getNid(), 
@@ -133,5 +151,8 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 	{
 		log.info("realShutDown executing, which will stop isaac");
 		super.tearDown();
+		userStoreFile.delete();
+		new File(userStoreFile.getAbsolutePath() + ".bak").delete();
+		new File(new File(System.getProperty("java.io.tmpdir")), "rest-test-tokenSecret").delete();
 	}
 }

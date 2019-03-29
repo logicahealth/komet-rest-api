@@ -15,8 +15,6 @@
  */
 package net.sagebits.tmp.isaac.rest.api1.data.classifier;
 
-import java.util.ArrayList;
-import java.util.List;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -41,10 +39,10 @@ public class RestClassifierCycle
 	private RestIdentifiedObject conceptWithCycle;
 	
 	/**
-	 * The isA path of concepts that forms the cycle from the conceptWithCycle back to itself
+	 * The isA path(s) of concepts that forms the cycle(s) from the conceptWithCycle back to itself
 	 */
 	@XmlElement
-	private List<RestIdentifiedObject[]> cyclePaths;
+	private RestClassifierCyclePath[] cyclePaths;
 	
 	
 	protected RestClassifierCycle()
@@ -58,16 +56,11 @@ public class RestClassifierCycle
 	public RestClassifierCycle(ClassifierCycle cc)
 	{
 		conceptWithCycle = new RestIdentifiedObject(cc.conceptWithCycle);
-		cyclePaths = new ArrayList<>();
+		cyclePaths = new RestClassifierCyclePath[cc.cyclePaths.size()];
 		
-		for (int[] cyclePath : cc.cyclePaths)
+		for (int i = 0; i < cc.cyclePaths.size(); i++)
 		{
-			RestIdentifiedObject[] convertedCycle = new RestIdentifiedObject[cyclePath.length];
-			for (int i = 0; i < convertedCycle.length; i++)
-			{
-				convertedCycle[i] = new RestIdentifiedObject(cyclePath[i]);
-			}
-			cyclePaths.add(convertedCycle);
+			cyclePaths[i] = new RestClassifierCyclePath(cc.cyclePaths.get(i));
 		}
 	}
 }

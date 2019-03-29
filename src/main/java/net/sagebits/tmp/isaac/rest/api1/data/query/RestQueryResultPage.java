@@ -30,7 +30,6 @@
 
 package net.sagebits.tmp.isaac.rest.api1.data.query;
 
-import java.util.List;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -80,9 +79,9 @@ public class RestQueryResultPage
 	 * @throws RestException
 	 */
 	public RestQueryResultPage(int pageNum, int maxPageSize, int approximateTotal, boolean totalIsExact, boolean hasMoreData, String baseUrl,
-			List<RestQueryResult> results) throws RestException
+			RestQueryResult[] results) throws RestException
 	{
-		this.results = results.toArray(new RestQueryResult[results.size()]);
+		this.results = results;
 		this.paginationData = new Pagination(pageNum, maxPageSize, approximateTotal, totalIsExact, hasMoreData, baseUrl);
 	}
 

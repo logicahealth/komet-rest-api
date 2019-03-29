@@ -30,6 +30,8 @@
 
 package net.sagebits.tmp.isaac.rest.api1.coordinate;
 
+import java.util.Optional;
+import java.util.UUID;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -39,6 +41,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
@@ -52,15 +55,16 @@ import net.sagebits.tmp.isaac.rest.api1.data.coordinate.RestLanguageCoordinate;
 import net.sagebits.tmp.isaac.rest.api1.data.coordinate.RestLogicCoordinate;
 import net.sagebits.tmp.isaac.rest.api1.data.coordinate.RestManifoldCoordinate;
 import net.sagebits.tmp.isaac.rest.api1.data.coordinate.RestStampCoordinate;
-import net.sagebits.tmp.isaac.rest.session.PrismeIntegratedUserService;
-import net.sagebits.tmp.isaac.rest.session.PrismeUserService;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestInfoUtils;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.tmp.isaac.rest.tokens.EditToken;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
+import net.sagebits.uts.auth.rest.api1.data.RestUser;
+import net.sagebits.uts.auth.rest.session.AuthRequestParameters;
 import sh.isaac.MetaData;
-import sh.isaac.api.LookupService;
-import sh.isaac.misc.security.SystemRoleConstants;
+import sh.isaac.api.Get;
+import sh.isaac.api.coordinate.EditCoordinate;
 import sh.isaac.utility.Frills;
 
 /**
@@ -69,8 +73,8 @@ import sh.isaac.utility.Frills;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.coordinateAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class CoordinateAPIs
 {
 	private static Logger log = LogManager.getLogger(CoordinateAPIs.class);
@@ -144,8 +148,6 @@ public class CoordinateAPIs
 			@QueryParam(RequestParameters.descriptionLogicProfile) String descriptionLogicProfile, @QueryParam(RequestParameters.classifier) String classifier)
 			throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		// All parameters, including defaults, are handled by the RestContainerRequestFilter
@@ -177,8 +179,6 @@ public class CoordinateAPIs
 	@Path(RestPaths.coordinatesComponent)
 	public RestCoordinates getCoordinates(@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		RestManifoldCoordinate taxonomyCoordinate = getTaxonomyCoordinate(coordToken);
@@ -214,8 +214,6 @@ public class CoordinateAPIs
 	@Path(RestPaths.taxonomyCoordinatePathComponent)
 	public RestManifoldCoordinate getTaxonomyCoordinate(@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return new RestManifoldCoordinate(RequestInfo.get().getManifoldCoordinate());
@@ -243,8 +241,6 @@ public class CoordinateAPIs
 	@Path(RestPaths.stampCoordinatePathComponent)
 	public RestStampCoordinate getStampCoordinate(@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return new RestStampCoordinate(RequestInfo.get().getStampCoordinate());
@@ -272,8 +268,6 @@ public class CoordinateAPIs
 	@Path(RestPaths.languageCoordinatePathComponent)
 	public RestLanguageCoordinate getLanguageCoordinate(@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return new RestLanguageCoordinate(RequestInfo.get().getLanguageCoordinate());
@@ -301,8 +295,6 @@ public class CoordinateAPIs
 	@Path(RestPaths.logicCoordinatePathComponent)
 	public RestLogicCoordinate getLogicCoordinate(@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return new RestLogicCoordinate(RequestInfo.get().getLogicCoordinate());
@@ -313,74 +305,96 @@ public class CoordinateAPIs
 	 * This method returns a <code>RestEditToken</code>, which is an encrypted String that is used internally
 	 * to authenticate and convey user and session information between KOMET and PRISME. Information conveyed includes
 	 * user, module, and path concepts as well as, optionally, a workflow process. Each EditToken expires after a set amount of time
-	 * and is otherwise usable for a write operation exactly once, after which it becomes expired and unusable for further write operations.
+	 * and is otherwise usable.
+	 * 
+	 * Each write token can only be used for one write operation - after that, is is unusable for further write operations (but may be used 
+	 * to get a fresh edit token)
+	 * 
 	 * An expired token may be renewed by passing it as an editToken parameter to another getEditToken() call.
 	 * 
 	 * All write operations return a <code>RestWriteResponse</code> object containing a renewed, and therefore readily usable EditToken.
 	 * 
-	 * If a previously-retrieved editToken parameter is passed, it will be used. The editToken parameter is incompatible with ssoToken and userId
-	 * parameters.
-	 * If editToken is not passed and PRISME services are configured (prisme.properties exists and prisme_roles_by_token_url is set)
-	 * then a valid SSO token string must be passed in the ssoToken parameter
+	 * If an editToken is passed into this method in combination with other edit token parameters, the editToken parameters take priority 
+	 * in the newly returned token.
 	 * 
-	 * ---------- DEVELOPER (Not Production) options below: --------------
+	 * This method requires at least EDITOR permissions
 	 * 
-	 * If editToken is not passed and PRISME services are not configured and userId is passed then the userId parameter is parsed, to load a test user
-	 * with all
-	 * roles, as an existing concept id (UUID or NID), a case-insensitive keyword "DEFAULT" or the FQN description of an existing
-	 * user concept
-	 * 
-	 * If editToken is not passed and PRISME services are not configured and ssoToken is passed AND IT IS RUNNING AS A UNIT TEST UNDER src/test then
-	 * the ssoToken
-	 * is parsed, to load or create a test user with name and roles specified by a string with the syntax {name}:{role1}[{,role2}[{,role3}[...]]].
-	 * 
-	 * If any additional optional parameters are passed, then their values will be applied to the token specified by the
-	 * required parameters, and the resulting RestEditToken will be returned.
-	 * 
-	 *
-	 * @param ssoToken specifies an explicit serialized SSO token string. Not valid with use of userId or editToken.
-	 * @param editToken - optional previously-retrieved editToken string encoding user, module, path concept ids and optional workflow process id. Not
-	 *            valid with use
-	 *            of ssoToken or userId.
+	 * @param ssoToken - optional - a previously issued token that represents an authenticated user.
+	 * @param userName - optional - a user name to authenticate against local auth - must be used with password
+	 * @param email  - optional - an e-mail address (instead of a username) to authenticate against local auth - must be used with password
+	 * @param password  - optional - the password to authenticate against local in combination with  username or email.
+	 * @param editToken - optional previously-retrieved editToken string encoding user, module, path concept ids and optional workflow process id. 
+	 *     If sent in combination with an ssoToken, or other user identifying information, the user details must align.
 	 * @param editModule - optional module concept id
 	 * @param editPath - optional path concept id
-	 * @param userId - optional test User id of an existing concept id (UUID or NID),
-	 *            a case-insensitive keyword "DEFAULT" or the exact FQN description of an existing user concept.
-	 *            The userId parameter is only valid if PRISME is NOT configured. Not valid with use of ssoToken or editToken.
+	 * @param processId 
 	 *
 	 * @return RestEditToken
-	 * 
 	 * @throws RestException
 	 */
 	@GET
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.editTokenComponent)
-	public RestEditToken getEditToken(@QueryParam(RequestParameters.ssoToken) String ssoToken, // Applied in RestContainerRequestFilter
-			@QueryParam(RequestParameters.userId) String userId, // Applied in RestContainerRequestFilter
+	@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+		SystemRoleConstants.EDITOR})
+	public RestEditToken getEditToken(@QueryParam(AuthRequestParameters.ssoToken) String ssoToken, // Applied in RestContainerRequestFilter
+			@QueryParam(AuthRequestParameters.email) String email, // Applied in RestContainerRequestFilter
+			@QueryParam(AuthRequestParameters.userName) String userName, // Applied in RestContainerRequestFilter
+			@QueryParam(AuthRequestParameters.password) String password, // Applied in RestContainerRequestFilter
 			@QueryParam(RequestParameters.editToken) String editToken, // Applied in RestContainerRequestFilter
 			@QueryParam(RequestParameters.editModule) String editModule, // Applied in RestContainerRequestFilter
-			@QueryParam(RequestParameters.editPath) String editPath // Applied in RestContainerRequestFilter
+			@QueryParam(RequestParameters.editPath) String editPath, // Applied in RestContainerRequestFilter
+			@QueryParam(RequestParameters.processId) String processId // Applied in RestContainerRequestFilter
 	) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-		RequestInfoUtils.validateIncompatibleParameters(RequestInfo.get().getParameters(), RequestParameters.editToken, RequestParameters.ssoToken,
-				RequestParameters.userId);
-
-		PrismeUserService userService = LookupService.getService(PrismeIntegratedUserService.class);
-		if (!userService.usePrismeForRolesByToken())
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), 
+				AuthRequestParameters.ssoToken,
+				AuthRequestParameters.email,
+				AuthRequestParameters.userName,
+				AuthRequestParameters.password, 
+				RequestParameters.EDIT_TOKEN_PARAM_NAMES);
+		
+		//For an encoded editToken, or SSO / username credentials, all work is done in the RestContainerRequestFilter.
+		//If we get this far, the user information has been passed and validated by the filter.
+		
+		//They didn't pass an editToken, need to construct the entire thing.
+		if (StringUtils.isBlank(editToken))
 		{
-			RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.ssoToken,
-					RequestParameters.userId, RequestParameters.EDIT_TOKEN_PARAM_NAMES);
+			Integer module = null;
+			Integer path = null;
+			UUID workflowProcessId = null;
+			
+			EditCoordinate defaultEditCoordinate = RequestInfo.getDefaultEditCoordinate();
+			
+			if (StringUtils.isNotBlank(processId))
+			{
+				workflowProcessId = RequestInfoUtils.parseUuidParameter(RequestParameters.processId, processId);
+			}
+			if (StringUtils.isNotBlank(editModule))
+			{
+				module = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.editModule, editModule);
+			}
+			if (StringUtils.isNotBlank(editPath))
+			{
+				path = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.editPath, editPath);
+			}
+
+			Optional<RestUser> user = RequestInfo.get().getUser();
+			// Must have a real user
+			if (!user.isPresent())
+			{
+				throw new RestException("Edit token cannot be constructed without user information!");
+			}
+			
+			return new RestEditToken(new EditToken(Get.identifierService().getNidForUuids(user.get().userId),
+					module != null ? module : defaultEditCoordinate.getModuleNid(), path != null ? path : defaultEditCoordinate.getPathNid(),
+					workflowProcessId));
 		}
 		else
 		{
-			RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.ssoToken,
-					RequestParameters.EDIT_TOKEN_PARAM_NAMES);
+			// All work is done in RequestInfo.get().getEditToken(), initially invoked by RestContainerRequestFilter
+			return new RestEditToken(RequestInfo.get().getEditToken().renewToken());
 		}
-
-		// All work is done in RequestInfo.get().getEditToken(), initially invoked by RestContainerRequestFilter
-
-		return new RestEditToken(RequestInfo.get().getEditToken().renewToken());
 	}
 	
 
@@ -399,7 +413,6 @@ public class CoordinateAPIs
 	@Path(RestPaths.editModule + "{" + RequestParameters.id + "}")
 	public RestIdentifiedObject getEditModule(@PathParam(RequestParameters.id) String id) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, 
 				RequestParameters.COORDINATE_PARAM_NAMES);
 		

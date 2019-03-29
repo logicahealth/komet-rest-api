@@ -40,7 +40,7 @@ import net.sagebits.tmp.isaac.rest.api1.data.semantic.RestSemanticLogicGraphVers
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestInfoUtils;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.MetaData;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.semantic.SemanticChronology;
@@ -48,7 +48,6 @@ import sh.isaac.api.component.semantic.version.LogicGraphVersion;
 import sh.isaac.api.coordinate.LanguageCoordinate;
 import sh.isaac.api.coordinate.LogicCoordinate;
 import sh.isaac.api.coordinate.StampCoordinate;
-import sh.isaac.misc.security.SystemRoleConstants;
 import sh.isaac.utility.Frills;
 
 /**
@@ -58,8 +57,8 @@ import sh.isaac.utility.Frills;
  */
 
 @Path(RestPaths.logicGraphAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class LogicGraphAPIs
 {
 	@Context
@@ -102,8 +101,6 @@ public class LogicGraphAPIs
 			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
 				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -152,8 +149,6 @@ public class LogicGraphAPIs
 			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
 				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 

@@ -2,13 +2,37 @@
  * 
  * <h1>ISAAC Web Server</h1>
  * <p>
- * A REST server with a simple data model for accessing <u>ISAAC</u> functionality.
- * Primarily supports the <u>ISAAC web GUI</u>.
+ * A REST server with a simple data model for accessing <u>ISAAC</u> functionality in the SOLOR data model.
+ * Primarily supports the <u>UTS Web Editor</u>.
  * </p>
  * 
  * <p></p>
  * <p></p>
  * <p></p>
+ * 
+ * <h2>Authentication</h2>
+ * <p>
+ * The server can be used in local authentication mode, or configured against a uts-auth-api instance, which would be more typical deployment 
+ * when the uts-web-editor is also deployed.
+ * 
+ * To configure the auth mode, see the src/test/resources/uts-rest-api.properties file.
+ * 
+ * In local auth mode, all queries support the following parameters:
+ * </p>
+ * <p>
+ * <code>ssoToken - optional - a previously issued token that represents an authenticated user.</code>
+ * </p><p>
+ * <code>userName - optional - a user name to authenticate against local auth - must be used with password</code>
+ * </p><p>
+ * <code>email - optional - an e-mail address (instead of a username) to authenticate against local auth - must be used with password</code>
+ * </p><p>
+ * <code>password - optional - the password to authenticate against local in combination with  username or email.</code>
+ * </p>
+ * 
+ * <p>
+ * When using the remote auth server, auth should be done against that server, which will return an ssoToken - which can then be passed here.
+ * In remote auth mode, if userName, email, password are sent here, they are delegated to the configured remote-auth server.
+ * </p>
  * 
  * <h2>Return Types</h2>
  * <p>
@@ -27,7 +51,7 @@
  * <p>
  * The RestCoordinatesToken token serializes all values comprising the Taxonomy, Stamp, Language and Logic coordinates
  * </p>
- * .
+ * 
  * <p>
  * The pattern to use is to call getCoordinatesToken() with or without additional coordinate-specific parameters to get a token configured and
  * returned.

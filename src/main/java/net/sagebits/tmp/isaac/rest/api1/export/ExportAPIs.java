@@ -55,9 +55,8 @@ import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.misc.exporters.VetsExporter;
-import sh.isaac.misc.security.SystemRoleConstants;
 
 /**
  * {@link ExportAPIs}
@@ -65,8 +64,8 @@ import sh.isaac.misc.security.SystemRoleConstants;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.exportAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class ExportAPIs
 {
 	private static Logger log = LogManager.getLogger(ExportAPIs.class);
@@ -96,8 +95,6 @@ public class ExportAPIs
 	public Response export(@QueryParam(RequestParameters.changedAfter) String changedAfter, @QueryParam(RequestParameters.changedBefore) String changedBefore)
 			throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.changedAfter,
 				RequestParameters.changedBefore, RequestParameters.COORDINATE_PARAM_NAMES);
 

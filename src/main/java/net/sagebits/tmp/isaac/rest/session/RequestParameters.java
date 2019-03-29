@@ -41,6 +41,7 @@ import java.util.Set;
 import org.apache.mahout.math.Arrays;
 
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
+import net.sagebits.uts.auth.rest.session.AuthRequestParameters;
 
 /**
  * 
@@ -54,9 +55,6 @@ import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 public class RequestParameters {
 	private RequestParameters() {}
 	
-	// CoordinatesToken
-	public final static String ssoToken = "ssoToken";
-
 	// CoordinatesToken
 	public final static String coordToken = "coordToken";
 	
@@ -183,7 +181,6 @@ public class RequestParameters {
 	// Workflow
 	public final static String definitionId = "definitionId"; // UUID string
 	public final static String processId = "processId"; // UUID string
-	public final static String userId = "userId"; // UUID string
 	public final static String acquireLock = "acquireLock"; // string, "true" or "false"
 	public final static String status = "status"; //String, workflow status
 	public final static String includeActive = "includeActive";
@@ -205,6 +202,9 @@ public class RequestParameters {
 	public final static String changedBefore = "changedBefore";
 	
 	public final static String field = "field";
+	
+	public static final String global = "global";
+	public static final String local = "local";
 
 	// VUID
 	public final static String blockSize = "blockSize";
@@ -212,7 +212,6 @@ public class RequestParameters {
 	public final static String vuid = "vuid";
 	public final static Set<String> VUID_PARAM_NAMES =
 			unmodifiableSet(
-					ssoToken,
 					blockSize,
 					reason,
 					vuid);
@@ -243,8 +242,6 @@ public class RequestParameters {
 		params.addAll(VUID_PARAM_NAMES);
 		params.addAll(unmodifiableSet(
 			expand,
-			ssoToken,
-				
 			id,
 			nid,
 
@@ -281,7 +278,6 @@ public class RequestParameters {
 			//workflow
 			definitionId,
 			processId,
-			userId,
 			acquireLock,
 			status,
 			includeActive,
@@ -289,6 +285,9 @@ public class RequestParameters {
 			includeCanceled,
 			
 			field,
+			
+			global,
+			local,
 			
 			vuidGeneration,
 			
@@ -351,6 +350,14 @@ public class RequestParameters {
 				}
 			}
 		}
+		
+		//All calls support these, to allow auth
+		supportedParameterNamesSet.add(AuthRequestParameters.ssoToken);
+		supportedParameterNamesSet.add(AuthRequestParameters.userName);
+		supportedParameterNamesSet.add(AuthRequestParameters.email);
+		supportedParameterNamesSet.add(AuthRequestParameters.password);
+		supportedParameterNamesSet.add(AuthRequestParameters.googleToken);
+		
 		for (String parameterName : parameters.keySet())
 		{
 			String parameterNameToCompare = IGNORE_CASE_VALIDATING_PARAM_NAMES ? parameterName.toUpperCase(Locale.ENGLISH) : parameterName;

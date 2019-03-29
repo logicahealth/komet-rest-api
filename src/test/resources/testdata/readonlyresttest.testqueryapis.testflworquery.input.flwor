@@ -34,7 +34,7 @@
                         <Concept fqn="Regular name description type (SOLOR)" uuids="8bfba944-3965-3946-9bcb-1e80a5da63a2 d6fad981-7df6-3388-94d8-238cc0465a79"/>
                     </typePreference>
                     <modulePreference>
-                        <Concept fqn="SNOMED CT« core modules (SOLOR)" uuids="1b4f1ba5-b725-390f-8c3b-33ec7096bdca"/>
+                        <Concept fqn="SNOMED CT core modules (SOLOR)" uuids="1b4f1ba5-b725-390f-8c3b-33ec7096bdca"/>
                         <Concept fqn="SOLOR overlay module (SOLOR)" uuids="9ecc154c-e490-5cf8-805d-d2865d62aef3"/>
                         <Concept fqn="SOLOR module (SOLOR)" uuids="f680c868-f7e5-5d0e-91f2-615eca8f8fd2"/>
                     </modulePreference>

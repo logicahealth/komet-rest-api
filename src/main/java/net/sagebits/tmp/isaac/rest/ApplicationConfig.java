@@ -57,6 +57,7 @@ import org.apache.logging.log4j.Logger;
 import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import org.glassfish.jersey.server.spi.Container;
 import org.glassfish.jersey.server.spi.ContainerLifecycleListener;
 import org.w3c.dom.Document;
@@ -119,7 +120,8 @@ public class ApplicationConfig extends ResourceConfig implements ContainerLifecy
 		// If we leave everything to annotations, is picks up the eclipse moxy gson writer, which doesn't handle abstract classes properly.
 		// The goal here is to force it to use Jackson, but it seems that registering jackson disables scanning, so also have to re-enable
 		// scanning. It also seems ot forget to scan this class... so register itself..
-		super(new ResourceConfig().packages("net.sagebits.tmp.isaac.rest").register(JacksonFeature.class).register(ApplicationConfig.class));
+		super(new ResourceConfig().packages("net.sagebits.tmp.isaac.rest").register(JacksonFeature.class).register(ApplicationConfig.class)
+				.register(RolesAllowedDynamicFeature.class));
 		
 		//This is for supporting .xml and .json extensions for changing the return type
 		HashMap<String, Object> uriTypeMapProperties = new HashMap<>();
@@ -152,7 +154,7 @@ public class ApplicationConfig extends ResourceConfig implements ContainerLifecy
 	private void configureSecret()
 	{
 		File tempDirName = new File(System.getProperty("java.io.tmpdir"));
-		File file = new File(tempDirName, contextPath.replaceAll("/", "_") + "-tokenSecret");
+		File file = new File(tempDirName, contextPath + "-tokenSecret");
 
 		log.debug("Secret file for token encoding " + file.getAbsolutePath() + " " + (file.exists() ? "exists" : "does not exist"));
 
@@ -206,15 +208,17 @@ public class ApplicationConfig extends ResourceConfig implements ContainerLifecy
 		}
 		instance_ = this;
 
+		boolean testCodeRunning = "testing1234".equals(container.getConfiguration().getApplicationName());
+		
 		// context is null when run from eclipse with the local grizzly runner.
 		if (context_ == null)
 		{
 			debugMode = true;
-			contextPath = "rest";
+			contextPath = testCodeRunning ? "rest-test" :  "rest";
 		}
 		else
 		{
-			contextPath = context_.getContextPath().replace("/", "");
+			contextPath = context_.getContextPath().replaceAll("/", "");
 			debugMode = (contextPath.contains("SNAPSHOT") ? true : false);
 		}
 
@@ -446,21 +450,6 @@ public class ApplicationConfig extends ResourceConfig implements ContainerLifecy
 
 						systemInfo_ = new RestSystemInfo();
 						log.info(systemInfo_.toString());
-
-						try
-						{
-							String warFileVersion = RestConfig.getInstance().getApplicationWarFileVersion();
-							if (StringUtils.isNotBlank(warFileVersion) && !warFileVersion.equals(systemInfo_.getApiImplementationVersion()))
-							{
-								log.warn(
-										"The WAR file version found in the prisme.properties file does not match the version from the pom.xml in the war file!  Found "
-												+ systemInfo_.getApiImplementationVersion() + " and " + warFileVersion);
-							}
-						}
-						catch (Exception e)
-						{
-							log.error("Unexpected error validating war file versions!", e);
-						}
 
 						status_.set("Ready");
 						System.out.println("Done setting up ISAAC");

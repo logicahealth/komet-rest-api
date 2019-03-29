@@ -19,11 +19,9 @@
 package net.sagebits.tmp.isaac.rest.api1.query;
 
 import java.io.StringReader;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
@@ -35,22 +33,18 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
 import javax.xml.bind.JAXBException;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import net.sagebits.tmp.isaac.rest.api.data.PaginationUtils;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResult;
 import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResultPage;
-import net.sagebits.tmp.isaac.rest.api1.data.query.RestQueryResults;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.api.Get;
 import sh.isaac.api.query.Query;
-import sh.isaac.misc.security.SystemRoleConstants;
 import sh.isaac.model.xml.QueryFromXmlProvider;
 
 /**
@@ -59,8 +53,8 @@ import sh.isaac.model.xml.QueryFromXmlProvider;
  * @author <a href="mailto:joel.kniaz.list@gmail.com">Joel Kniaz</a>
  */
 @Path(RestPaths.queryAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-	SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class QueryAPIs
 {
 	private static Logger log = LogManager.getLogger();
@@ -166,7 +160,7 @@ public class QueryAPIs
 	 *     &lt;/results&gt;
 	 * &lt;/restQueryResultPage&gt;
 	 * </pre>
-	 * @throws {@link net.sagebits.tmp.isaac.rest.api.exceptions.RestException}
+	 * @throws RestException 
 	 */
 	@POST
 	@Path(RestPaths.flworComponent)
@@ -177,62 +171,71 @@ public class QueryAPIs
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
 			String flworQueryXml) throws RestException {
 
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		// Each API method should validate that passed query parameters are appropriate for this request
 		RequestParameters.validateParameterNamesAgainstSupportedNames(
 				RequestInfo.get().getParameters(),
 				RequestParameters.PAGINATION_PARAM_NAMES);
 
-		if (pageNum < 1) {
-			throw new RestException(RequestParameters.pageNum, pageNum + "", "Parameter " + RequestParameters.pageNum + " value must be > 0");
+		try
+		{
+			if (pageNum < 1) {
+				throw new RestException(RequestParameters.pageNum, pageNum + "", "Parameter " + RequestParameters.pageNum + " value must be > 0");
+			}
+
+			if (maxPageSize < 1) {
+				throw new RestException(RequestParameters.maxPageSize, maxPageSize + "", "Parameter " + RequestParameters.maxPageSize + " value must be > 0");
+			}
+
+			log.debug("Executing FLWOR query (pageNum=" + pageNum + ", maxPageSize=" + maxPageSize + "):\n" + flworQueryXml);
+
+			Query queryFromXml = null;
+			try {
+				QueryFromXmlProvider queryParserService = Get.service(QueryFromXmlProvider.class);
+				queryFromXml = queryParserService.fromXml(new StringReader(flworQueryXml));
+			} catch (JAXBException e) {
+				log.warn("Bad query XML: " + e.getLocalizedMessage() + "\n" + flworQueryXml, e);
+				throw new RestException("Bad query XML: ", e.getLocalizedMessage());
+			} catch (Exception e) {
+				log.error("Unexpected error parsing FLWOR query XML:\n" + flworQueryXml, e);
+				throw new RuntimeException("Unexpected error parsing FLWOR query XML", e);
+			}
+
+			// ISAAC FLWOR query executeQuery() returns rows as arrays of column arrays
+			@SuppressWarnings("unchecked")
+			List<List<String>> queryResultFromIsaacAsRows = Collections.EMPTY_LIST;
+			try {
+				queryResultFromIsaacAsRows = queryFromXml.executeQuery();
+				log.info("Retrieved " + queryResultFromIsaacAsRows.size() + " unpaginated rows from FLWOR query:\n" + flworQueryXml);
+
+			} catch (Exception e) {
+				log.error(e.getClass().getSimpleName() + " executing FLWOR query with XML:\n" + flworQueryXml, e);
+				throw new RuntimeException(e.getLocalizedMessage() + " executing FLWOR query " + flworQueryXml, e);
+			}
+
+			final List<List<String>> paginatedResult = PaginationUtils.getResults(queryResultFromIsaacAsRows, pageNum, maxPageSize);
+			log.trace("Retrieved pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\"):\n" + paginatedResult);
+
+			log.trace("Retrieved " + paginatedResult.size() + " paginated rows (pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\") FLWOR query:\n" + flworQueryXml);
+
+			final RestQueryResult[] results = getRestQueryResultsFromFlworQueryResult(paginatedResult);
+
+			final String restPath = RestPaths.queryAppPathComponent + RestPaths.flworComponent;
+
+			return new RestQueryResultPage(pageNum, maxPageSize, results.length, false, results.length == maxPageSize, restPath, results); 
+
 		}
-
-		if (maxPageSize < 1) {
-			throw new RestException(RequestParameters.maxPageSize, maxPageSize + "", "Parameter " + RequestParameters.maxPageSize + " value must be > 0");
+		catch (RestException e)
+		{
+			throw e;
 		}
-
-		log.debug("Executing FLWOR query (pageNum=" + pageNum + ", maxPageSize=" + maxPageSize + "):\n" + flworQueryXml);
-
-		Query queryFromXml = null;
-		try {
-			QueryFromXmlProvider queryParserService = Get.service(QueryFromXmlProvider.class);
-			queryFromXml = queryParserService.fromXml(new StringReader(flworQueryXml));
-		} catch (JAXBException e) {
-			log.warn("Bad query XML: " + e.getLocalizedMessage() + "\n" + flworQueryXml, e);
-			throw new RestException("Bad query XML: ", e.getLocalizedMessage());
-		} catch (Exception e) {
-			log.error("Unexpected error parsing FLWOR query XML:\n" + flworQueryXml, e);
-			throw new RuntimeException("Unexpected error parsing FLWOR query XML", e);
+		catch (RuntimeException e)
+		{
+			log.error("Unexpected internal error performing query", e);
+			throw e;
 		}
-
-		// ISAAC FLWOR query executeQuery() returns rows as arrays of column arrays
-		@SuppressWarnings("unchecked")
-		List<List<String>> queryResultFromIsaacAsRows = Collections.EMPTY_LIST;
-		try {
-			queryResultFromIsaacAsRows = queryFromXml.executeQuery();
-			log.info("Retrieved " + queryResultFromIsaacAsRows.size() + " unpaginated rows from FLWOR query:\n" + flworQueryXml);
-
-		} catch (Exception e) {
-			log.error(e.getClass().getSimpleName() + " executing FLWOR query with XML:\n" + flworQueryXml, e);
-			throw new RuntimeException(e.getLocalizedMessage() + " executing FLWOR query " + flworQueryXml, e);
-		}
-
-		final List<List<String>> paginatedResult = PaginationUtils.getResults(queryResultFromIsaacAsRows, pageNum, maxPageSize);
-		log.trace("Retrieved pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\"):\n" + paginatedResult);
-
-		log.trace("Retrieved " + paginatedResult.size() + " paginated rows (pageNum=\"" + pageNum + "\", maxPageSize=\"" + maxPageSize + "\") FLWOR query:\n" + flworQueryXml);
-
-		final RestQueryResults results = getRestQueryResultsFromFlworQueryResult(paginatedResult);
-
-		final String restPath = RestPaths.queryAppPathComponent + RestPaths.flworComponent;
-
-		final RestQueryResultPage resultPage = getRestQueryResultsFromFlworQueryResults(results, pageNum, maxPageSize, restPath);
-
-		return resultPage;
 	}
 
-	private static RestQueryResults getRestQueryResultsFromFlworQueryResult(List<List<String>> queryResultFromIsaacAsRowsOfStrings) {
+	private static RestQueryResult[] getRestQueryResultsFromFlworQueryResult(List<List<String>> queryResultFromIsaacAsRowsOfStrings) {
 		List<RestQueryResult> resultRows = new LinkedList<>();
 
 		for (List<String> aRowOfStringsFromIsaacQueryResult : queryResultFromIsaacAsRowsOfStrings) {
@@ -240,17 +243,10 @@ public class QueryAPIs
 
 			resultRows.add(aRowOfStrings);
 		}
-		RestQueryResults restQueryResultsToReturn = new RestQueryResults(resultRows.toArray(new RestQueryResult[resultRows.size()]));
+		RestQueryResult[] restQueryResultsToReturn = resultRows.toArray(new RestQueryResult[resultRows.size()]);
 
 		log.trace("Returning result of FLWOR query: " + restQueryResultsToReturn);
 
 		return restQueryResultsToReturn;
-	}
-
-	private RestQueryResultPage getRestQueryResultsFromFlworQueryResults(RestQueryResults restQueryResults, int pageNum, int maxPageSize,
-			String restPath) throws RestException
-	{
-		return new RestQueryResultPage(pageNum, maxPageSize, restQueryResults.getRows().length, false, restQueryResults.getRows().length == maxPageSize, restPath,
-				Arrays.asList(restQueryResults.getRows()));
 	}
 }

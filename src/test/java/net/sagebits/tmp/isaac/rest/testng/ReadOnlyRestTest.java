@@ -40,13 +40,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.xml.bind.JAXBException;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.glassfish.grizzly.http.util.Header;
@@ -63,7 +61,6 @@ import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.RestCoordinatesToken;
 import net.sagebits.tmp.isaac.rest.api1.data.RestEditToken;
-import net.sagebits.tmp.isaac.rest.api1.data.RestIdentifiedObjects;
 import net.sagebits.tmp.isaac.rest.api1.data.RestSystemInfo;
 import net.sagebits.tmp.isaac.rest.api1.data.concept.RestConceptChronology;
 import net.sagebits.tmp.isaac.rest.api1.data.coordinate.RestLanguageCoordinate;
@@ -88,10 +85,8 @@ import net.sagebits.tmp.isaac.rest.session.RequestParameters;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesToken;
 import net.sagebits.tmp.isaac.rest.tokens.CoordinatesTokens;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
+import net.sagebits.uts.auth.rest.session.AuthRequestParameters;
 import sh.isaac.MetaData;
-import sh.isaac.api.Get;
-import sh.isaac.api.component.semantic.SemanticChronology;
-import sh.isaac.api.component.semantic.version.DescriptionVersion;
 import sh.isaac.api.constants.DynamicConstants;
 import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.coordinate.PremiseType;
@@ -123,8 +118,8 @@ public class ReadOnlyRestTest extends BaseTestCode
 	@Test
 	public void testEditToken()
 	{
-		Response getEditTokenResponse = target(editTokenRequestPath.replaceFirst(RestPaths.appPathComponent, ""))
-				.queryParam(RequestParameters.ssoToken, TEST_SSO_TOKEN).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
+		Response getEditTokenResponse = target(editTokenRequestPath)
+				.queryParam(AuthRequestParameters.ssoToken, TEST_SSO_TOKEN).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
 		String getEditTokenResponseResult = checkFail(getEditTokenResponse).readEntity(String.class);
 		RestEditToken restEditTokenObject = XMLUtils.unmarshalObject(RestEditToken.class, getEditTokenResponseResult);
 

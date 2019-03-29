@@ -43,8 +43,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
-import sh.isaac.misc.security.SystemRoleConstants;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 
 /**
  * {@link ContentRequestAPIs}
@@ -52,8 +51,8 @@ import sh.isaac.misc.security.SystemRoleConstants;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.contentRequestAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class ContentRequestAPIs
 {
 	@Context
@@ -72,8 +71,6 @@ public class ContentRequestAPIs
 	@Path(RestPaths.termRequestComponent)
 	public Response putNewTermRequest(String data) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		// System.out.println("received media type: " + request.getMediaType());
 		System.out.println("got data '" + data + "'");
 		if (data.contains("BAD"))

@@ -18,6 +18,7 @@ package net.sagebits.tmp.isaac.rest.api1.data.classifier;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.PrimitiveIterator.OfInt;
 import java.util.Set;
 import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
@@ -26,6 +27,7 @@ import org.apache.mahout.math.list.IntArrayList;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import sh.isaac.api.Get;
 import sh.isaac.api.classifier.ClassifierResults;
 
 /**
@@ -55,7 +57,7 @@ public class ClassifierResult implements Comparable<ClassifierResult>
 	protected Long completeTime;
 	
 	/**
-	 * The concepts affected by this classification.
+	 * The concepts with logic graphs changed by this classification. 
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
@@ -81,6 +83,15 @@ public class ClassifierResult implements Comparable<ClassifierResult>
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	protected int[] orphanedConcepts;
+	
+	/**
+	 * The count of concepts evaluated during the classification.  The initial run of the classifier after the start of the system
+	 * will result in all concepts being evaluated.  Subsequent classifications will only evaluate modified concepts, so long as the 
+	 * classifier status cache was maintained.  This number is only a measure of how much work the classifier did.  Only provided upon 
+	 * successful completion.
+	 */
+	@XmlElement
+	protected int processedConceptCount = 0;
 	
 	/**
 	 * The ID of this classification run
@@ -114,12 +125,20 @@ public class ClassifierResult implements Comparable<ClassifierResult>
 		
 		if (cr.getAffectedConcepts() != null && cr.getAffectedConcepts().size() > 0)
 		{
-			this.affectedConcepts = new int[cr.getAffectedConcepts().size()];
+			//The classification APIs have a funny definition of "affected"
+			this.processedConceptCount = cr.getAffectedConcepts().size();
+		}
+		
+		if (cr.getCommitRecord().isPresent() && cr.getCommitRecord().get().getSemanticNidsInCommit() != null)
+		{	
+			this.affectedConcepts = new int[cr.getCommitRecord().get().getSemanticNidsInCommit().size()];
 			int i = 0;
-			for (int nid : cr.getAffectedConcepts())
+		
+			OfInt ofInt = cr.getCommitRecord().get().getSemanticNidsInCommit().getIntIterator();
+			while (ofInt.hasNext())
 			{
-				this.affectedConcepts[i++] = nid;
-			}
+				this.affectedConcepts[i++] = Get.assemblageService().getSemanticChronology(ofInt.nextInt()).getReferencedComponentNid();
+			};
 		}
 		
 		if (cr.getEquivalentSets() != null && cr.getEquivalentSets().size() > 0)

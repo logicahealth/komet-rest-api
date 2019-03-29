@@ -50,7 +50,7 @@ public class RestClassifierResult
 	private Long completeTime;
 	
 	/**
-	 * The concepts affected by this classification.  Only provided upon successful completion.  Limited to 100 results by default, 
+	 * The concepts with logic graphs changed by this classification.  Only provided upon successful completion.  Limited to 100 results by default, 
 	 * unless the parameter largeResults=true is passed.  
 	 */
 	@XmlElement
@@ -70,7 +70,7 @@ public class RestClassifierResult
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private List<RestIdentifiedObject[]> equivalentSets;
+	private RestClassifierEquivalentSet[] equivalentSets;
 	
 	/**
 	 * The count of equivalent sets identified by the classifier.
@@ -84,7 +84,7 @@ public class RestClassifierResult
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	private List<RestClassifierCycle> cycles;
+	private RestClassifierCycle[] cycles;
 	
 	/**
 	 * The count of cycles identified by the classification process.
@@ -107,6 +107,16 @@ public class RestClassifierResult
 	 */
 	@XmlElement
 	private int orphanedConceptCount = 0;
+	
+	/**
+	 * The count of concepts evaluated during the classification.  The initial run of the classifier after the start of the system
+	 * will result in all concepts being evaluated.  Subsequent classifications will only evaluate modified concepts, so long as the 
+	 * classifier status cache was maintained.  This number is only a measure of how much work the classifier did.  Only provided upon 
+	 * successful completion.
+	 */
+	@XmlElement
+	private int processedConceptCount = 0;
+
 	
 	/**
 	 * The ID of this classification run
@@ -133,6 +143,7 @@ public class RestClassifierResult
 		this.status = cr.status;
 		this.completeTime = cr.completeTime;
 		this.status = cr.status;
+		this.processedConceptCount = cr.processedConceptCount;
 		
 		if (cr.affectedConcepts != null && cr.affectedConcepts.length > 0)
 		{
@@ -151,18 +162,20 @@ public class RestClassifierResult
 		
 		if (cr.equivalentSets != null && cr.equivalentSets.size() > 0)
 		{
-			this.equivalentSets = new ArrayList<RestIdentifiedObject[]>(limitResult ? 100 : cr.equivalentSets.size());
+			this.equivalentSets = new RestClassifierEquivalentSet[(limitResult ? Math.min(100, cr.equivalentSets.size()) : cr.equivalentSets.size())];
 			this.equivalentSetCount = cr.equivalentSets.size();
+			int i = 0;
 			for (int[] ial : cr.equivalentSets)
 			{
-				int j = 0;
-				RestIdentifiedObject[] set = new RestIdentifiedObject[ial.length];
-				this.equivalentSets.add(set);
+				List<RestIdentifiedObject> set = new ArrayList<>(ial.length);
 				for (int nid : ial)
 				{
-					set[j++] = new RestIdentifiedObject(nid);
+					set.add(new RestIdentifiedObject(nid));
 				}
-				if (limitResult && j == 100)
+				
+				this.equivalentSets[i] = new RestClassifierEquivalentSet(set);
+				
+				if (limitResult && ++i == 100)
 				{
 					break;
 				}
@@ -171,19 +184,20 @@ public class RestClassifierResult
 		
 		if (cr.cycles != null && cr.cycles.size() > 0)
 		{
-			cycles = new ArrayList<>(limitResult ? 100 : cr.cycles.size());
+			cycles = new RestClassifierCycle[(limitResult ? Math.min(100, cr.cycles.size()) : cr.cycles.size())];
 			cycleCount = cr.cycles.size();
+			int i = 0;
 			for (ClassifierCycle cycle : cr.cycles)
 			{
-				cycles.add(new RestClassifierCycle(cycle));
-				if (limitResult && cycles.size() == 100)
+				cycles[i] = new RestClassifierCycle(cycle);
+				if (limitResult && ++i == 100)
 				{
 					break;
 				}
 			}
 		}
 		
-		if (cycles != null && cycles.size() > 0)
+		if (cycles != null && cycles.length > 0)
 		{
 			status = "Failed due to cycles";
 		}

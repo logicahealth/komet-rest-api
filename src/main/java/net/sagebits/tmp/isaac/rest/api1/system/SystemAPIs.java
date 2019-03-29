@@ -76,7 +76,7 @@ import net.sagebits.tmp.isaac.rest.api1.taxonomy.TaxonomyAPIs;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestInfoUtils;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.MetaData;
 import sh.isaac.api.Get;
 import sh.isaac.api.TaxonomySnapshot;
@@ -90,7 +90,6 @@ import sh.isaac.api.coordinate.PremiseType;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.api.util.NumericUtils;
 import sh.isaac.api.util.UUIDUtil;
-import sh.isaac.misc.security.SystemRoleConstants;
 import sh.isaac.model.configuration.StampCoordinates;
 import sh.isaac.model.coordinate.ManifoldCoordinateImpl;
 import sh.isaac.utility.Frills;
@@ -101,8 +100,8 @@ import sh.isaac.utility.Frills;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.systemAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class SystemAPIs
 {
 	private static Logger log = LogManager.getLogger();
@@ -133,8 +132,6 @@ public class SystemAPIs
 			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
 				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -255,8 +252,6 @@ public class SystemAPIs
 	public RestObjectChronologyType getObjectChronologyType(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.coordToken) String coordToken) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id,
 				RequestParameters.COORDINATE_PARAM_NAMES);
 
@@ -307,8 +302,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestDynamicSemanticDataTypeComponent)
 	public RestDynamicSemanticDataType[] getRestDynamicSemanticDataTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestDynamicSemanticDataType.getAll();
@@ -325,8 +318,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestDynamicValidatorTypeComponent)
 	public RestDynamicSemanticValidatorType[] getRestDynamicValidatorTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestDynamicSemanticValidatorType.getAll();
@@ -343,8 +334,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestObjectChronologyTypeComponent)
 	public RestObjectChronologyType[] getRestObjectChronologyTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestObjectChronologyType.getAll();
@@ -361,8 +350,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestSemanticTypeComponent)
 	public RestSemanticType[] getRestSemanticVersionTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestSemanticType.getAll();
@@ -379,8 +366,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestConcreteDomainOperatorTypes)
 	public RestConcreteDomainOperatorsType[] getRestConcreteDomainOperatorTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestConcreteDomainOperatorsType.getAll();
@@ -397,8 +382,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestNodeSemanticTypes)
 	public RestNodeSemanticType[] getRestNodeSemanticTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestNodeSemanticType.getAll();
@@ -415,8 +398,6 @@ public class SystemAPIs
 	@Path(RestPaths.enumerationRestSupportedIdTypes)
 	public RestSupportedIdType[] getRestSupportedIdTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return RestSupportedIdType.getAll();
@@ -426,6 +407,9 @@ public class SystemAPIs
 	 * ISAAC, REST API and related DB metadata. These values are cached.
 	 * @return the system info
 	 * 
+	 * This method optionally requires user credentials, or token information.  Anonymous access is 
+	 * always allowed to this method, though, that may change in the future.
+	 * 
 	 * @throws RestException
 	 */
 	@GET
@@ -433,8 +417,6 @@ public class SystemAPIs
 	@Path(RestPaths.systemInfoComponent)
 	public RestSystemInfo getSystemInfo() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		return ApplicationConfig.getInstance().getSystemInfo();
@@ -452,7 +434,6 @@ public class SystemAPIs
 	@Path(RestPaths.userComponent + "{" + RequestParameters.id + "}")
 	public RestUserInfo getUserInfo(@PathParam(RequestParameters.id) String id) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, 
 				RequestParameters.COORDINATE_PARAM_NAMES);
 		return new RestUserInfo(RequestInfoUtils.getConceptNidFromParameter(RequestParameters.id, id));
@@ -470,8 +451,6 @@ public class SystemAPIs
 	@Path(RestPaths.terminologyTypes)
 	public RestTerminologyConcept[] getTerminologyTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		TreeSet<RestTerminologyConcept> terminologies = new TreeSet<>();
@@ -504,8 +483,6 @@ public class SystemAPIs
 	@Path(RestPaths.modules)
 	public RestConceptVersion getAvailableModules(@QueryParam(RequestParameters.availableOnly) @DefaultValue("true") String availableOnly) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), 
 				RequestParameters.COORDINATE_PARAM_NAMES,
 				RequestParameters.availableOnly);
@@ -560,8 +537,6 @@ public class SystemAPIs
 	@Path(RestPaths.extendedDescriptionTypes + "{" + RequestParameters.id + "}")
 	public RestConceptChronology[] getExtendedDescriptionTypesForTerminology(@PathParam(RequestParameters.id) String id) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, 
 				RequestParameters.COORDINATE_PARAM_NAMES);
 
@@ -614,8 +589,6 @@ public class SystemAPIs
 	@Path(RestPaths.externalDescriptionTypes + "{" + RequestParameters.id + "}")
 	public RestConceptVersion[] getExternalDescriptionTypesForTerminology(@PathParam(RequestParameters.id) String id) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, 
 				RequestParameters.COORDINATE_PARAM_NAMES);
 
@@ -720,8 +693,6 @@ public class SystemAPIs
 	@Path(RestPaths.descriptionTypes)
 	public RestConceptVersion[] getAllDescriptionTypes() throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
 
 		TreeSet<RestConceptVersion> fqns = new TreeSet<>();
@@ -810,8 +781,6 @@ public class SystemAPIs
 	@Path(RestPaths.descriptionStyle + "{" + RequestParameters.id + "}")
 	public RestDescriptionStyle getDescriptionStyleForTerminology(@PathParam(RequestParameters.id) String id) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, 
 				RequestParameters.COORDINATE_PARAM_NAMES);
 		

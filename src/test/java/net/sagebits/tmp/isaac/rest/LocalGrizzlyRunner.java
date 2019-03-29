@@ -47,6 +47,7 @@ import org.glassfish.jersey.jackson.JacksonFeature;
 import org.glassfish.jersey.message.MessageProperties;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
+import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
 import eu.infomas.annotation.AnnotationDetector;
 import net.sagebits.HK2Utilities.AnnotatedClasses;
 import net.sagebits.HK2Utilities.AnnotationReporter;
@@ -73,6 +74,7 @@ public class LocalGrizzlyRunner
 
 		Set<Class<?>> temp = new HashSet<Class<?>>(Arrays.asList(ac.getAnnotatedClasses()));
 		temp.add(JacksonFeature.class);  // No annotations in this class
+		temp.add(RolesAllowedDynamicFeature.class);
 
 		ResourceConfig rc = new ResourceConfig(temp);
 

@@ -37,7 +37,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -45,13 +44,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
+import net.sagebits.uts.auth.rest.api1.data.RestUser;
 import sh.isaac.api.Get;
-import sh.isaac.api.LookupService;
 import sh.isaac.api.coordinate.EditCoordinate;
 import sh.isaac.api.externalizable.ByteArrayDataBuffer;
 import sh.isaac.api.util.PasswordHasher;
-import sh.isaac.misc.security.User;
-import sh.isaac.misc.security.UserService;
 import sh.isaac.model.coordinate.EditCoordinateImpl;
 
 /**
@@ -127,6 +124,7 @@ public class EditToken
 	// Transient - non-serialized variables
 	private transient EditCoordinate editCoordinate = null;
 	private transient String serialization;
+	private transient RestUser user;  //set upon readback in certain situations.
 
 	/**
 	 * Create a new edit token, valid for a short period of time.
@@ -392,14 +390,14 @@ public class EditToken
 	 * 
 	 * @return the user object
 	 */
-	public User getUser()
+	public RestUser getUser()
 	{
-		Optional<User> user = LookupService.get().getService(UserService.class).get(authorNid);
-		if (!user.isPresent())
-		{
-			throw new RuntimeException("Should be impossible to have an editToken without a user available!");
-		}
-		return user.get();
+		return user;
+	}
+	
+	public void setUser(RestUser user)
+	{
+		this.user = user;
 	}
 
 	/**

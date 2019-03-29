@@ -17,10 +17,12 @@
  * limitations under the License.
  */
 
-package net.sagebits.tmp.isaac.rest.api1.data.enumerations;
+package net.sagebits.uts.auth.rest.api1.enumerations;
 
+import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import sh.isaac.misc.security.SystemRole;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import net.sagebits.uts.auth.data.UserRole;
 
 /**
  * 
@@ -32,23 +34,21 @@ import sh.isaac.misc.security.SystemRole;
 @XmlRootElement
 public class RestUserRoleType extends Enumeration
 {
+	/**
+	 * The description of this particular role
+	 */
+	@XmlElement
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public String roleDescription;
+	
 	protected RestUserRoleType()
 	{
 		// for jaxb
 	}
 
-	public RestUserRoleType(SystemRole st)
+	public RestUserRoleType(UserRole st)
 	{
-		super(st.name(), null, st.ordinal());
-	}
-
-	public static RestUserRoleType[] getAll()
-	{
-		RestUserRoleType[] result = new RestUserRoleType[SystemRole.values().length];
-		for (int i = 0; i < SystemRole.values().length; i++)
-		{
-			result[i] = new RestUserRoleType(SystemRole.values()[i]);
-		}
-		return result;
+		super(st.name(), st.getNiceName(), st.ordinal());
+		this.roleDescription = st.getRoleDescription();
 	}
 }

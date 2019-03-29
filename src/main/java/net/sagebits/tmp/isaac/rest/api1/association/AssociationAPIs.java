@@ -48,15 +48,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
-import sh.isaac.api.Get;
-import sh.isaac.misc.security.SystemRoleConstants;
-import sh.isaac.api.chronicle.LatestVersion;
-import sh.isaac.api.component.semantic.version.DynamicVersion;
-import sh.isaac.api.coordinate.StampCoordinate;
-import sh.isaac.api.util.AlphanumComparator;
-import sh.isaac.misc.associations.AssociationInstance;
-import sh.isaac.misc.associations.AssociationType;
-import sh.isaac.misc.associations.AssociationUtilities;
 import net.sagebits.tmp.isaac.rest.Util;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
@@ -66,7 +57,15 @@ import net.sagebits.tmp.isaac.rest.api1.data.association.RestAssociationTypeVers
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestInfoUtils;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
+import sh.isaac.api.Get;
+import sh.isaac.api.chronicle.LatestVersion;
+import sh.isaac.api.component.semantic.version.DynamicVersion;
+import sh.isaac.api.coordinate.StampCoordinate;
+import sh.isaac.api.util.AlphanumComparator;
+import sh.isaac.misc.associations.AssociationInstance;
+import sh.isaac.misc.associations.AssociationType;
+import sh.isaac.misc.associations.AssociationUtilities;
 
 /**
  * {@link AssociationAPIs}
@@ -74,8 +73,8 @@ import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.associationAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY, SystemRoleConstants.EDITOR,
-		SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+		SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class AssociationAPIs
 {
 	@Context
@@ -108,8 +107,6 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -170,8 +167,6 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -216,8 +211,6 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -299,8 +292,6 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -347,8 +338,6 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
@@ -396,8 +385,6 @@ public class AssociationAPIs
 			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 

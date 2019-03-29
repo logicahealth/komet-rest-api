@@ -46,7 +46,7 @@ import net.sagebits.tmp.isaac.rest.api1.data.search.RestSearchResultPage;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestInfoUtils;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
-import net.sagebits.tmp.isaac.rest.session.SecurityUtils;
+import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.MetaData;
 import sh.isaac.api.Get;
 import sh.isaac.api.LookupService;
@@ -68,7 +68,6 @@ import sh.isaac.api.index.SearchResult;
 import sh.isaac.api.util.Interval;
 import sh.isaac.api.util.NumericUtils;
 import sh.isaac.api.util.UUIDUtil;
-import sh.isaac.misc.security.SystemRoleConstants;
 import sh.isaac.model.semantic.types.DynamicStringImpl;
 import sh.isaac.provider.query.lucene.indexers.DescriptionIndexer;
 import sh.isaac.utility.Frills;
@@ -80,8 +79,8 @@ import sh.isaac.utility.NumericUtilsDynamic;
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
 @Path(RestPaths.searchAPIsPathComponent)
-@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.SUPER_USER, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.READ_ONLY,
-		SystemRoleConstants.EDITOR, SystemRoleConstants.REVIEWER, SystemRoleConstants.APPROVER, SystemRoleConstants.DEPLOYMENT_MANAGER })
+@RolesAllowed({ SystemRoleConstants.AUTOMATED, SystemRoleConstants.ADMINISTRATOR, SystemRoleConstants.SYSTEM_MANAGER, SystemRoleConstants.CONTENT_MANAGER,
+	SystemRoleConstants.EDITOR, SystemRoleConstants.READ })
 public class SearchAPIs
 {
 	private static Logger log = LogManager.getLogger();
@@ -111,6 +110,10 @@ public class SearchAPIs
 	 * 
 	 * @param query The query to be evaluated. Will be parsed by the Lucene Query Parser:
 	 *            https://lucene.apache.org/core/7_0_0/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#package.description
+	 *            This also supports regular expressions, however, the lucene syntax requires regular expressions to be surrounded by forward slashes - 
+	 *            /dat[^a].*./ - and many of the characters (/, [, ], ^) are illegal in a URI.  It is recommended that you URI encode your search string. 
+	 *            The example above, would become %2fdat%5b%5ea%5d.*.%2f
+	 *
 	 * @param descriptionTypes - optional - can be specified as 'fqn', 'regular', or 'definition' to restrict to a particular
 	 *            description type. This also supports legacy names - 'fsn' is the same as 'fqn', 'synonym' and 'regular*' is the same as 'regular'. 
 	 *            You may also specify UUIDs or NIDS of a description type concept.
@@ -158,8 +161,6 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.descriptionTypes, RequestParameters.extendedDescriptionTypes, RequestParameters.PAGINATION_PARAM_NAMES,
 				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
@@ -246,8 +247,6 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.restrictTo, RequestParameters.mergeOnConcept, RequestParameters.expand,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
@@ -447,6 +446,10 @@ public class SearchAPIs
 	 *            <br>If the query is a mathematical interval - [4,6] or (5,10] or [4,] it will be handled as a numeric interval.
 	 *            <br>If the query is not numeric, and is not a valid interval, it will be treated as a string and parsed by the Lucene Query Parser:
 	 *            http://lucene.apache.org/core/5_3_1/queryparser/org/apache/lucene/queryparser/classic/package-summary.html#Overview
+	 *            <br>This also supports regular expressions, however, the lucene syntax requires regular expressions to be surrounded by forward slashes - 
+	 *            <br>/dat[^a].*./ - and many of the characters (/, [, ], ^) are illegal in a URI.  It is recommended that you URI encode your search string. 
+	 *            <br>The example above, would become %2fdat%5b%5ea%5d.*.%2f
+	 *
 	 * @param treatAsString Treat the query as a string search, even if it is parseable as a number. This is useful because
 	 *            'id' type semantics in the data model are always represented as a string, even if they are numeric.
 	 * @param semanticAssemblageId (optional) restrict the search to only match on members of the provided semantic assemblage identifier(s).
@@ -502,8 +505,6 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.treatAsString, RequestParameters.semanticAssemblageId, RequestParameters.dynamicSemanticColumns,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
@@ -659,8 +660,6 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.nid,
 				RequestParameters.semanticAssemblageId, RequestParameters.dynamicSemanticColumns, RequestParameters.PAGINATION_PARAM_NAMES,
 				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
@@ -730,8 +729,6 @@ public class SearchAPIs
 			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		SecurityUtils.validateRole(securityContext, getClass());
-
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
 
