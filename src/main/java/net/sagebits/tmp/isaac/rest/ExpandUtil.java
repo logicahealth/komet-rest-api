@@ -30,6 +30,8 @@
 
 package net.sagebits.tmp.isaac.rest;
 
+import java.util.HashSet;
+
 /**
  * 
  * {@link ExpandUtil}
@@ -52,4 +54,28 @@ public class ExpandUtil
 	public static final String countParents = "countParents";
 	public static final String includeParents = "includeParents";
 	public static final String terminologyType = "terminologyType";
+	
+	private static final HashSet<String> allValidExpansions = new HashSet<>();
+	
+	static {
+		allValidExpansions.add(versionsAllExpandable);
+		allValidExpansions.add(versionsLatestOnlyExpandable);
+		allValidExpansions.add(versionExpandable);
+		allValidExpansions.add(chronologyExpandable);
+		allValidExpansions.add(uuid);
+		allValidExpansions.add(referencedConcept);
+		allValidExpansions.add(nestedSemanticsExpandable);
+		allValidExpansions.add(referencedDetails);
+		allValidExpansions.add(comments);
+		allValidExpansions.add(source);
+		allValidExpansions.add(target);
+		allValidExpansions.add(countParents);
+		allValidExpansions.add(includeParents);
+		allValidExpansions.add(terminologyType);
+	}
+	
+	public static boolean isValidExpansion(String possibleExpansion)
+	{
+		return allValidExpansions.contains(possibleExpansion);
+	}
 }

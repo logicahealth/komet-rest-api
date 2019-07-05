@@ -93,7 +93,7 @@ public class RestSystemInfo
 	 * data structure.
 	 */
 	@XmlElement
-	String[] supportedAPIVersions = new String[] { "1.20.2" };
+	String[] supportedAPIVersions = new String[] { "1.20.4" };
 
 	/**
 	 * REST API Implementation Version - aka the version number of the software running here.
@@ -180,7 +180,6 @@ public class RestSystemInfo
 		// read the ISAAC metadata
 		AtomicBoolean readIsaacAppMetadata = new AtomicBoolean(false);
 
-		// if running from eclipse - our launch folder should be "ISAAC-rest".
 		File f = new File("").getAbsoluteFile();
 		DocumentBuilderFactory domFactory = DocumentBuilderFactory.newInstance();
 		domFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
@@ -190,11 +189,7 @@ public class RestSystemInfo
 		{
 			InputStream is = ApplicationConfig.getInstance().getServletContext()
 					.getResourceAsStream("/META-INF/maven/net.sagebits.uts.rest/uts-rest-api/pom.xml");
-			if (is == null)
-			{
-				log_.warn("Can't locate pom.xml file in deployment to read metadata");
-			}
-			else
+			if (is != null)
 			{
 				try
 				{
@@ -207,7 +202,8 @@ public class RestSystemInfo
 				readIsaacAppMetadata.set(true);
 			}
 		}
-		else if (f.getName().toLowerCase().endsWith("rest-api"))  // context null, are we running in a local jetty runner?
+		// if running from eclipse - our launch folder should be "uts-rest-api".
+		if (!readIsaacAppMetadata.get() && f.getName().toLowerCase().endsWith("uts-rest-api"))  // context null, are we running in a local jetty runner?
 		{
 			File pom = new File(f, "pom.xml");
 			if (pom.isFile())

@@ -29,7 +29,6 @@
  */
 package net.sagebits.tmp.isaac.rest.api1.data.association;
 
-import java.util.UUID;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
@@ -166,10 +165,9 @@ public class RestAssociationItemVersion
 
 	/**
 	 * @param read
-	 * @param processId 
 	 * @throws RestException
 	 */
-	public RestAssociationItemVersion(AssociationInstance read, UUID processId) throws RestException
+	public RestAssociationItemVersion(AssociationInstance read) throws RestException
 	{
 		associationType = new RestIdentifiedObject(read.getAssociationTypeNid(), IsaacObjectType.CONCEPT);
 		identifiers = new RestIdentifiedObject(read.getData().getChronology());
@@ -192,16 +190,15 @@ public class RestAssociationItemVersion
 				if (sourceId.type.enumId == IsaacObjectType.CONCEPT.ordinal())
 				{
 					sourceConcept = new RestConceptChronology(Get.conceptService().getConceptChronology(sourceId.nid),
-							RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-							RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true, processId);
+							false,
+							RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true);
 				}
 				else if (sourceId.type.enumId == IsaacObjectType.SEMANTIC.ordinal())
 				{
 					sourceSemantic = new RestSemanticChronology(Get.assemblageService().getSemanticChronology(sourceId.nid),
-							RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
+							false,
 							RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable),
-							RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails),
-							processId);
+							RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails));
 				}
 				else
 				{
@@ -214,16 +211,15 @@ public class RestAssociationItemVersion
 				if (targetId.type.enumId == IsaacObjectType.CONCEPT.ordinal())
 				{
 					targetConcept = new RestConceptChronology(Get.conceptService().getConceptChronology(targetId.nid),
-							RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-							RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true, processId);
+							false,
+							RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true);
 				}
 				else if (targetId.type.enumId == IsaacObjectType.SEMANTIC.ordinal())
 				{
 					targetSemantic = new RestSemanticChronology(Get.assemblageService().getSemanticChronology(targetId.nid),
-							RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
+							false,
 							RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable),
-							RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails),
-							processId);
+							RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails));
 				}
 				else
 				{
@@ -235,7 +231,7 @@ public class RestAssociationItemVersion
 			{
 				nestedSemantics = SemanticAPIs.get(identifiers.getFirst().toString(), null, null,
 						RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable), true, RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails),
-						true, true, true, processId);
+						false, true, true, true);
 			}
 			if (expandables.size() == 0)
 			{

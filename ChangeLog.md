@@ -3,6 +3,22 @@ ISAAC-rest Changelog
 This changelog summarizes changes and fixes which are a part of each revision.  For more details on the fixes, refer tracking numbers where provided, and the git commit history.  Note that this is not the same as the API Changelog.md.  This file will contain information on all changes - including bug fixes.  The API Changelog will only contain documentation on changes of the API - and those are tied to the 
 API version number, not the release version number.
 
+* 2019/06/?? - 6.28
+    * Corrected documentation for expand params on /logicGraph/chronology calls.
+    * Added validation / error checking to expand parameter values, so it will now flag ones that are unknown and/or unsupported by a method.
+    * Corrected / enhanced documentation on versionAll expansion options.  Fixed implemenation issues with versionAll, so that nested or referenced
+        components are populated with a version that corresponds to the version of the requested item being returned.
+
+* 2019/06/07 - 6.27
+    * Fixed a bug where it wasn't rejecting /write/ requests that were missing an edit token with the correct error message.
+    * Fixed a bug (upstream) where the index wasn't flagging metadata properly, leading to prefixSearchs with a metadata restriction to not work properly.
+        Existing databases must be re-indexed with the latest code, to start working properly.  .../rest/write/1/system/rebuildIndex?editToken=.....
+    * Fix a bug that prevented altIDs from being populated for the referenced component in certain semantic calls.
+
+* 2019/04/19 - 6.26
+    * API enhancements per the API changelog
+    * Fixed a bug with paged result counts when filtering off path results
+
 * 2019/03/28 - 6.25
     * Lots of internal changes to migrate auth over to the new uts-auth-api code.
     * Used a more standard approach for validating authentication

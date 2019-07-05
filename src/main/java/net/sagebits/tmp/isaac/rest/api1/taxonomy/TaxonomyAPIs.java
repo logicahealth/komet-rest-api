@@ -20,7 +20,8 @@ package net.sagebits.tmp.isaac.rest.api1.taxonomy;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import java.util.TreeMap;
+import java.util.function.Function;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -50,6 +51,10 @@ import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.collections.NidSet;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
+import sh.isaac.api.coordinate.PremiseType;
+import sh.isaac.api.util.AlphanumComparator;
+import sh.isaac.model.coordinate.ManifoldCoordinateImpl;
 
 /**
  * {@link TaxonomyAPIs}
@@ -103,7 +108,6 @@ public class TaxonomyAPIs
 	 *            {@link MetaData#MODULE____SOLOR} concepts. This is returned as a set, as a concept may exist in multiple terminologies at the same
 	 *            time.
 	 * @param expand - comma separated list of fields to expand. Supports 'chronology'.
-	 * @param processId 
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param pageNum The pagination page number >= 1 to return
@@ -111,6 +115,10 @@ public class TaxonomyAPIs
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
 	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
 	 *     performance. 
+	 * @param sortFull - (optional) When set to true, calculate the entire result set, and sort it properly prior to paging.  This can significantly 
+	 *     increase the time it takes to calculate the results.  When fall (the default if not specified) each page of results that is returned is sorted,
+	 *     but only within that page.
+	 *     
 	 * @return the concept version object
 	 * @throws RestException
 	 */
@@ -126,56 +134,68 @@ public class TaxonomyAPIs
 			@QueryParam(RequestParameters.countChildren) @DefaultValue("false") String countChildren,
 			@QueryParam(RequestParameters.semanticMembership) @DefaultValue("false") String semanticMembership,
 			@QueryParam(RequestParameters.terminologyType) @DefaultValue("false") String terminologyType, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(PAGE_NUM_DEFAULT + "") int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(MAX_PAGE_SIZE_DEFAULT + "") int maxPageSize,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.altId) String altId,
+			@QueryParam(RequestParameters.sortFull) @DefaultValue("false") String sortFull) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.parentHeight,
 				RequestParameters.countParents, RequestParameters.childDepth, RequestParameters.countChildren, RequestParameters.semanticMembership,
-				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES,
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.altId, RequestParameters.sortFull);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.chronologyExpandable);
 
 		boolean countChildrenBoolean = Boolean.parseBoolean(countChildren.trim());
 		boolean countParentsBoolean = Boolean.parseBoolean(countParents.trim());
 		boolean includeSemanticMembership = Boolean.parseBoolean(semanticMembership.trim());
 		boolean includeTerminologyType = Boolean.parseBoolean(terminologyType.trim());
-
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
+		boolean sortFullBoolean = Boolean.parseBoolean(sortFull.trim());
 
 		ConceptChronology concept = ConceptAPIs.findConceptChronology(id);
-		LatestVersion<ConceptVersion> cv = concept.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, concept.getNid()));
+		LatestVersion<ConceptVersion> cv = concept.getLatestVersion(RequestInfo.get().getStampCoordinate());
 		Util.logContradictions(log, cv);
 		if (cv.isPresent())
 		{
 			// parent / child expansion is handled here by providing a depth, not with expandables.
 			// TODO handle contradictions
 			RestConceptVersion rcv = new RestConceptVersion(cv.get(), RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable), false, false, false,
-					false, RequestInfo.get().getStated(), includeSemanticMembership, includeTerminologyType, processIdUUID);
+					false, RequestInfo.get().getStated(), includeSemanticMembership, includeTerminologyType, true);
 
-			TaxonomySnapshot tree = Get.taxonomyService().getSnapshotNoTree(RequestInfo.get().getManifoldCoordinate());
+			ManifoldCoordinate mc = RequestInfo.get().getManifoldCoordinate();
+			if (sortFullBoolean)
+			{
+				//Sort all of the children or parents by the description we will be returning - this keeps the paged results being sane, 
+				//and since it is done way down in the TaxonomyRecord, our caches will work when the next page is requested.
+				((ManifoldCoordinateImpl)mc).setCustomSorter(new CustomSorter(mc));
+			}
+			TaxonomySnapshot tree = Get.taxonomyService().getSnapshotNoTree(mc);
 
 			if (parentHeight > 0)
 			{
-				addParents(concept.getNid(), rcv, tree, countParentsBoolean, parentHeight - 1, includeSemanticMembership, includeTerminologyType, new NidSet(),
-						processIdUUID);
+				addParents(concept.getNid(), rcv, tree, countParentsBoolean, parentHeight - 1, includeSemanticMembership, includeTerminologyType, new NidSet());
 			}
 			else if (countParentsBoolean)
 			{
-				countParents(concept.getNid(), rcv, tree, processIdUUID);
+				countParents(concept.getNid(), rcv, tree);
 			}
 
 			if (childDepth > 0)
 			{
 				//If parent height of more than 1 was requested, populate the direct parents for each child.
 				addChildren(concept.getNid(), rcv, tree, countChildrenBoolean, parentHeight > 0, countParentsBoolean, childDepth - 1, includeSemanticMembership,
-						includeTerminologyType, new NidSet(), processIdUUID, pageNum, maxPageSize);
+						includeTerminologyType, new NidSet(), pageNum, maxPageSize);
 			}
 			else if (countChildrenBoolean)
 			{
-				countChildren(concept.getNid(), rcv, tree, processIdUUID);
+				countChildren(concept.getNid(), rcv, tree);
 			}
-			rcv.sortParentsAndChildren();
+			if (!sortFullBoolean) 
+			{
+				//Sort should have already been done in the tree
+				rcv.sortParentsAndChildren();
+			}
 			return rcv;
 		}
 		throw new RestException(RequestParameters.id, id, "No concept was found");
@@ -192,14 +212,13 @@ public class TaxonomyAPIs
 	 * @param includeSemanticMembership
 	 * @param includeTerminologyType
 	 * @param alreadyAddedChildren
-	 * @param processId
 	 * @param pageNum > 0
 	 * @param maxPageSize > 0
 	 * @throws RestException 
 	 */
 	public static void addChildren(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree, boolean countLeafChildren, boolean populateParents, 
 			boolean countParents, int remainingChildDepth, boolean includeSemanticMembership, boolean includeTerminologyType, NidSet alreadyAddedChildren, 
-			UUID processId, int pageNum, // PAGE_NUM_DEFAULT == 1 
+			int pageNum, // PAGE_NUM_DEFAULT == 1 
 			int maxPageSize) // MAX_PAGE_SIZE_DEFAULT == 5000
 			throws RestException
 	{
@@ -260,24 +279,29 @@ public class TaxonomyAPIs
 			{
 				try
 				{
-					LatestVersion<ConceptVersion> cv = childConcept.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, childConcept.getNid()));
+					LatestVersion<ConceptVersion> cv = childConcept.getLatestVersion(tree.getManifoldCoordinate().getDestinationStampCoordinate());
 					Util.logContradictions(log, cv);
 					if (cv.isPresent())
 					{
 						// expand chronology of child even if unrequested, otherwise, you can't identify what the child is
 						// TODO handle contradictions
 						RestConceptVersion childVersion = new RestConceptVersion(cv.get(), true, populateParents, countParents, false, false,
-								RequestInfo.get().getStated(), includeSemanticMembership, includeTerminologyType, processId);
+								tree.getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED, 
+								includeSemanticMembership, includeTerminologyType, false);
 						children.add(childVersion);
 						if (remainingChildDepth > 0)
 						{
 							addChildren(childConcept.getNid(), childVersion, tree, countLeafChildren, populateParents, countParents, remainingChildDepth - 1,
-									includeSemanticMembership, includeTerminologyType, alreadyAddedChildren, processId, 1, MAX_PAGE_SIZE_DEFAULT);
+									includeSemanticMembership, includeTerminologyType, alreadyAddedChildren, 1, MAX_PAGE_SIZE_DEFAULT);
 						}
 						else if (countLeafChildren)
 						{
-							countChildren(childConcept.getNid(), childVersion, tree, processId);
+							countChildren(childConcept.getNid(), childVersion, tree);
 						}
+					}
+					else
+					{
+						log.warn("Taxonomy impl broken, not following coordinates on destination properly");
 					}
 				}
 				catch (RestException | RuntimeException e)
@@ -295,90 +319,18 @@ public class TaxonomyAPIs
 				children.toArray(new RestConceptVersion[children.size()]));
 	}
 
-	public static void countParents(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree, UUID processId)
+	public static void countParents(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree)
 	{
-		int count = 0;
-		for (int parentNid : tree.getTaxonomyParentConceptNids(conceptNid))
-		{
-			ConceptChronology parentConcept = null;
-			try
-			{
-				parentConcept = ConceptAPIs.findConceptChronology(parentNid + "");
-			}
-			catch (RestException e)
-			{
-				log.error("Unexpected error reading parent concept " + parentNid + " of child concept " + new RestIdentifiedObject(conceptNid)
-						+ ". Will not be included in count!", e);
-				rcv.exceptionMessages
-						.add("Error counting parent concept SEQ=" + parentNid + " of child concept SEQ=" + conceptNid + ": " + e.getLocalizedMessage());
-			}
-
-			if (parentConcept != null)
-			{
-				try
-				{
-					LatestVersion<ConceptVersion> cv = parentConcept.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, parentConcept.getNid()));
-					Util.logContradictions(log, cv);
-					if (cv.isPresent())
-					{
-						count++;
-					}
-				}
-				catch (Exception e)
-				{
-					log.error("Unexpected error reading latest version of parent concept " + new RestIdentifiedObject(parentNid) + " of child concept "
-							+ new RestIdentifiedObject(conceptNid) + ". Will not be included in count!", e);
-					rcv.exceptionMessages.add("Error counting latest version of parent concept SEQ=" + parentNid + " of child concept SEQ=" + conceptNid
-							+ ": " + e.getLocalizedMessage());
-				}
-			}
-		}
-		rcv.setParentCount(count);
+		rcv.setParentCount(tree.getTaxonomyParentConceptNids(conceptNid).length);
 	}
 
-	public static void countChildren(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree, UUID processId)
+	public static void countChildren(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree)
 	{
-		int count = 0;
-		for (int childNid : tree.getTaxonomyChildConceptNids(conceptNid))
-		{
-			ConceptChronology childConcept = null;
-			try
-			{
-				childConcept = ConceptAPIs.findConceptChronology(childNid + "");
-			}
-			catch (Exception e)
-			{
-				log.error("Failed finding concept for child concept SEQ=" + childNid + " of parent concept " + new RestIdentifiedObject(conceptNid)
-						+ ". Not including child in count.", e);
-				rcv.exceptionMessages
-						.add("Error counting child concept SEQ=" + childNid + " of parent concept SEQ=" + conceptNid + ": " + e.getLocalizedMessage());
-			}
-
-			if (childConcept != null)
-			{
-				try
-				{
-					LatestVersion<ConceptVersion> cv = childConcept.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, childConcept.getNid()));
-					Util.logContradictions(log, cv);
-					if (cv.isPresent())
-					{
-						count++;
-					}
-				}
-				catch (Exception e)
-				{
-					log.error("Failed finding latest version of child concept " + new RestIdentifiedObject(childNid) + " of parent concept "
-							+ new RestIdentifiedObject(conceptNid) + ". Not including child in count.", e);
-					rcv.exceptionMessages.add("Error counting latest version of child concept SEQ=" + childNid + " of parent concept SEQ=" + conceptNid
-							+ ": " + e.getLocalizedMessage());
-				}
-			}
-		}
-		rcv.setChildCount(count);
+		rcv.setChildCount(tree.getTaxonomyChildConceptNids(conceptNid).length);
 	}
 
 	public static void addParents(int conceptNid, RestConceptVersion rcv, TaxonomySnapshot tree, boolean countLeafParents, int remainingParentDepth,
-			boolean includeSemanticMembership, boolean includeTerminologyType, NidSet handledConcepts, UUID processId)
+			boolean includeSemanticMembership, boolean includeTerminologyType, NidSet handledConcepts)
 	{
 		if (handledConcepts.contains(conceptNid))
 		{
@@ -422,26 +374,30 @@ public class TaxonomyAPIs
 				{
 					try
 					{
-						LatestVersion<ConceptVersion> cv = parentConceptChronlogy
-								.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, parentConceptChronlogy.getNid()));
+						LatestVersion<ConceptVersion> cv = parentConceptChronlogy.getLatestVersion(tree.getManifoldCoordinate().getDestinationStampCoordinate());
 						Util.logContradictions(log, cv);
 
 						if (cv.isPresent())
 						{
 							// expand chronology of the parent even if unrequested, otherwise, you can't identify what the child is
 							// TODO handle contradictions
-							RestConceptVersion parentVersion = new RestConceptVersion(cv.get(), true, false, false, false, false, RequestInfo.get().getStated(),
-									includeSemanticMembership, includeTerminologyType, processId);
+							RestConceptVersion parentVersion = new RestConceptVersion(cv.get(), true, false, false, false, false, 
+									tree.getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED,
+									includeSemanticMembership, includeTerminologyType, false);
 							rcv.addParent(parentVersion);
 							if (remainingParentDepth > 0)
 							{
 								addParents(parentConceptChronlogy.getNid(), parentVersion, tree, countLeafParents, remainingParentDepth - 1,
-										includeSemanticMembership, includeTerminologyType, perParentHandledConcepts, processId);
+										includeSemanticMembership, includeTerminologyType, perParentHandledConcepts);
 							}
 							else if (countLeafParents)
 							{
-								countParents(parentConceptChronlogy.getNid(), parentVersion, tree, processId);
+								countParents(parentConceptChronlogy.getNid(), parentVersion, tree);
 							}
+						}
+						else
+						{
+							log.warn("Taxonomy impl broken, not following coordinates on destination properly");
 						}
 					}
 					catch (Exception e)
@@ -455,6 +411,52 @@ public class TaxonomyAPIs
 				// Add perParentHandledConcepts concepts back to handledConcepts
 				handledConcepts.addAll(perParentHandledConcepts.stream());
 			}
+		}
+	}
+	
+	class CustomSorter implements Function<int[], int[]>
+	{
+		private ManifoldCoordinate mc;
+		
+		private CustomSorter(ManifoldCoordinate mc)
+		{
+			this.mc = mc;
+		}
+		
+		/**
+		 * @see java.util.function.Function#apply(java.lang.Object)
+		 */
+		@Override
+		public int[] apply(int[] inputNids)
+		{
+			//Sort the concept nids based on the description the tree will display
+			TreeMap<String, Integer> sorted = new TreeMap<>(new AlphanumComparator(true));
+			for (int conNid : inputNids)
+			{
+				sorted.put(Util.readBestDescription(conNid, mc.getStampCoordinate(), mc.getLanguageCoordinate()), conNid);
+			}
+			
+			int i = 0;
+			for (int nid : sorted.values())
+			{
+				inputNids[i++] = nid;
+			}
+			return inputNids;
+		}
+
+		@Override
+		public int hashCode()
+		{
+			// we need to override hashcode, so that when the ManifoldCoordinate computes a unique hashcode or key for itself, 
+			//it gets a consistent hashcode for this function.  It doesn't actually matter what the value is, we just need it 
+			//to be consistent.
+			return 42;
+		}
+
+		@Override
+		public boolean equals(Object obj)
+		{
+			return this.hashCode() == obj.hashCode();
 		}
 	}
 }

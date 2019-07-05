@@ -260,7 +260,8 @@ public class CoordinatesToken
 	{
 		if (stampCoordinate == null)
 		{
-			stampCoordinate = new StampCoordinateImpl(getStampPrecedence(), new StampPositionImpl(stampTime, stampPath), getStampModules(), getStampStates());
+			stampCoordinate = new StampCoordinateImpl(getStampPrecedence(), new StampPositionImpl(stampTime, stampPath), getStampModules().toConceptSpec(), 
+					getStampStates());
 		}
 
 		return stampCoordinate;

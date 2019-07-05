@@ -36,7 +36,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import javax.xml.bind.annotation.XmlElement;
@@ -58,15 +57,20 @@ import net.sagebits.tmp.isaac.rest.api1.data.RestStampedVersion;
 import net.sagebits.tmp.isaac.rest.api1.taxonomy.TaxonomyAPIs;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import sh.isaac.MetaData;
+import sh.isaac.api.ConceptProxy;
 import sh.isaac.api.Get;
 import sh.isaac.api.TaxonomySnapshot;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.chronicle.VersionType;
 import sh.isaac.api.collections.NidSet;
+import sh.isaac.api.component.concept.ConceptSpecification;
 import sh.isaac.api.component.concept.ConceptVersion;
 import sh.isaac.api.component.semantic.SemanticChronology;
 import sh.isaac.api.component.semantic.version.LogicGraphVersion;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
+import sh.isaac.api.coordinate.StampCoordinate;
 import sh.isaac.api.externalizable.IsaacObjectType;
+import sh.isaac.model.coordinate.ManifoldCoordinateImpl;
 import sh.isaac.utility.Frills;
 
 /**
@@ -194,13 +198,27 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 		// for Jaxb
 	}
 
-	public RestConceptVersion(ConceptVersion cv, boolean includeChronology, UUID processId)
+	public RestConceptVersion(ConceptVersion cv, boolean includeChronology)
 	{
-		this(cv, includeChronology, false, false, false, false, false, false, false, processId);
+		this(cv, includeChronology, false, false, false, false, false, false, false, true);
 	}
 
+	/**
+	 * @param cv
+	 * @param includeChronology
+	 * @param includeParents
+	 * @param countParents
+	 * @param includeChildren
+	 * @param countChildren
+	 * @param stated - false for inferred
+	 * @param includeSemanticMembership
+	 * @param includeTerminologyType
+	 * @param useLatestStampForExpansion - true, to use the latest stamp from the request info when populating expansions.  False, to use a stamp
+	 *     which is constructed from the fields of the provided sv (this is normally what should be used when populating a list of all versions, so 
+	 *     that the expanded items match the point in time from the version being populated
+	 */
 	public RestConceptVersion(ConceptVersion cv, boolean includeChronology, boolean includeParents, boolean countParents, boolean includeChildren,
-			boolean countChildren, boolean stated, boolean includeSemanticMembership, boolean includeTerminologyType, final UUID processId)
+			boolean countChildren, boolean stated, boolean includeSemanticMembership, boolean includeTerminologyType, boolean useLatestStampForExpansion)
 	{
 		conVersion = new RestStampedVersion(cv);
 
@@ -209,10 +227,12 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 						(RequestInfo.get().getStated() ? RequestInfo.get().getLogicCoordinate().getStatedAssemblageNid()
 								: RequestInfo.get().getLogicCoordinate().getInferredAssemblageNid()))
 				.findAny();
+		
+		StampCoordinate stampToUse = computeVersionStamp(cv, useLatestStampForExpansion);
 
 		if (semantic.isPresent())
 		{
-			LatestVersion<LogicGraphVersion> sv = semantic.get().getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, semantic.get().getNid()));
+			LatestVersion<LogicGraphVersion> sv = semantic.get().getLatestVersion(stampToUse);
 			Util.logContradictions(log, sv);
 			if (sv.isPresent())
 			{
@@ -233,7 +253,7 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 					{
 						if (!semanticMembershipNids.contains(sc.getAssemblageNid()) && sc.getVersionType() != VersionType.LOGIC_GRAPH
 								&& sc.getVersionType() != VersionType.DESCRIPTION
-								&& sc.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, sc.getNid())).isPresent())
+								&& sc.getLatestVersion(stampToUse).isPresent())
 						{
 							semanticMembershipNids.add(sc.getAssemblageNid());
 						}
@@ -274,7 +294,7 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 			HashSet<Integer> terminologyTypeNids = null;
 			try
 			{
-				terminologyTypeNids = Frills.getTerminologyTypes(cv.getChronology(), RequestInfo.get().getStampCoordinate());
+				terminologyTypeNids = Frills.getTerminologyTypes(cv.getChronology(), stampToUse);
 			}
 			catch (RuntimeException e)
 			{
@@ -299,7 +319,7 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 			expandables = new Expandables();
 			if (includeChronology)
 			{
-				conChronology = new RestConceptChronology(cv.getChronology(), false, false, false, processId);
+				conChronology = new RestConceptChronology(cv.getChronology(), false, false, false);
 			}
 			else
 			{
@@ -314,8 +334,8 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 			{
 				try
 				{
-
-					tree = Get.taxonomyService().getSnapshotNoTree(RequestInfo.get().getManifoldCoordinate(stated));
+					ManifoldCoordinate coordForRead = RequestInfo.get().getManifoldCoordinate(stated);
+					tree = Get.taxonomyService().getSnapshotNoTree(new ManifoldCoordinateImpl(stampToUse, coordForRead.getLanguageCoordinate()));
 				}
 				catch (RuntimeException e)
 				{
@@ -327,11 +347,11 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 			if (includeParents)
 			{
 				TaxonomyAPIs.addParents(cv.getChronology().getNid(), this, tree, countParents, 0, includeSemanticMembership, includeTerminologyType,
-						new NidSet(), processId);
+						new NidSet());
 			}
 			else if (countParents)
 			{
-				TaxonomyAPIs.countParents(cv.getChronology().getNid(), this, tree, processId);
+				TaxonomyAPIs.countParents(cv.getChronology().getNid(), this, tree);
 			}
 
 			if (includeChildren)
@@ -339,7 +359,7 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 				try
 				{
 					TaxonomyAPIs.addChildren(cv.getChronology().getNid(), this, tree, countChildren, includeParents, countParents, 0, includeSemanticMembership,
-							includeTerminologyType, new NidSet(), processId, TaxonomyAPIs.PAGE_NUM_DEFAULT, TaxonomyAPIs.MAX_PAGE_SIZE_DEFAULT);
+							includeTerminologyType, new NidSet(), TaxonomyAPIs.PAGE_NUM_DEFAULT, TaxonomyAPIs.MAX_PAGE_SIZE_DEFAULT);
 				}
 				catch (RestException e)
 				{
@@ -349,7 +369,7 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 			}
 			else if (countChildren)
 			{
-				TaxonomyAPIs.countChildren(cv.getChronology().getNid(), this, tree, processId);
+				TaxonomyAPIs.countChildren(cv.getChronology().getNid(), this, tree);
 			}
 
 			if (includeParents || includeChildren)
@@ -483,5 +503,23 @@ public class RestConceptVersion implements Comparable<RestConceptVersion>
 		return "RestConceptVersion [conChronology=" + conChronology + ", conVersion=" + conVersion + ", isConceptDefined=" + isConceptDefined + ", parents="
 				+ parents + ", children=" + children + ", childCount=" + childCount + ", parentCount=" + parentCount + ", semanticMembership="
 				+ Arrays.toString(semanticMembership) + ", terminologyTypes=" + Arrays.toString(terminologyTypes) + "]";
+	}
+	
+	protected StampCoordinate computeVersionStamp(ConceptVersion cv, boolean useLatestStampForVersion)
+	{
+		if (useLatestStampForVersion)
+		{
+			return RequestInfo.get().getStampCoordinate();
+		}
+		else
+		{
+			StampCoordinate stampToUse = RequestInfo.get().getStampCoordinate().makeCoordinateAnalog(cv.getTime());
+			//we don't want our nested stuff to be newer than the version being returned.  Also, adjust the module order prefs, so the module
+			//for the stamp being processed is first (but don't exclude existing modules)
+			ArrayList<ConceptSpecification> orderPrefs = new ArrayList<>();
+			orderPrefs.add(new ConceptProxy(cv.getModuleNid()));
+			orderPrefs.addAll(stampToUse.getModulePreferenceOrderForVersions());
+			return stampToUse.makeModulePreferenceOrderAnalog(orderPrefs);
+		}
 	}
 }

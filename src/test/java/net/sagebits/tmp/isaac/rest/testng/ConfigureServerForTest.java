@@ -30,7 +30,7 @@ import org.testng.annotations.AfterSuite;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
-import net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner;
+import net.sagebits.tmp.isaac.rest.LocalServerRunner;
 import net.sagebits.uts.auth.data.User;
 import net.sagebits.uts.auth.data.UserRole;
 import net.sagebits.uts.auth.users.UserService;
@@ -60,7 +60,7 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 	private static Logger log = LogManager.getLogger(ReadOnlyRestTest.class);
 	
 	File userStoreFile;
-
+	
 	@Override
 	protected Application configure()
 	{
@@ -71,7 +71,7 @@ public class ConfigureServerForTest extends JerseyTestNg.ContainerPerClassTest
 			RecursiveDelete.delete(file);
 			file.mkdirs();
 			System.setProperty(DATA_STORE_ROOT_LOCATION_PROPERTY, "target/test.data");
-			ResourceConfig rc = LocalGrizzlyRunner.configureJerseyServer();
+			ResourceConfig rc = LocalServerRunner.configureJerseyServer();
 			rc.setApplicationName("testing1234");
 			return rc;
 		}

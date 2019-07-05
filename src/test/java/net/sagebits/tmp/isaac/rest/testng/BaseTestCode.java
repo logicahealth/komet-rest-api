@@ -30,7 +30,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.glassfish.grizzly.http.util.Header;
 import org.glassfish.jersey.test.JerseyTest;
 import org.glassfish.jersey.test.JerseyTestNg;
 import org.testng.Assert;
@@ -48,7 +47,7 @@ import net.sagebits.uts.auth.rest.session.AuthRequestParameters;
 import sh.isaac.api.Get;
 import sh.isaac.api.LookupService;
 import sh.isaac.api.coordinate.ManifoldCoordinate;
-import sh.isaac.convert.mojo.turtle.TurtleImportMojoDirect;
+import sh.isaac.convert.mojo.turtle.TurtleImportHK2Direct;
 
 /**
  * {@link BaseTestCode}
@@ -58,6 +57,7 @@ import sh.isaac.convert.mojo.turtle.TurtleImportMojoDirect;
 public class BaseTestCode
 {
 	public static Logger log = LogManager.getLogger(ReadOnlyRestTest.class);
+	public static String ACCEPT = "Accept";
 
 	final static String taxonomyCoordinateRequestPath = RestPaths.coordinateAPIsPathComponent + RestPaths.taxonomyCoordinatePathComponent;
 	final static String stampCoordinateRequestPath = RestPaths.coordinateAPIsPathComponent + RestPaths.stampCoordinatePathComponent;
@@ -98,7 +98,7 @@ public class BaseTestCode
 	public CoordinatesToken getDefaultCoordinatesToken() throws RestException
 	{
 		String editCoordinatesTokenXml = checkFail(
-				(jt.target(coordinatesTokenRequestPath)).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get()).readEntity(String.class);
+				(jt.target(coordinatesTokenRequestPath)).request().header(ACCEPT, MediaType.APPLICATION_XML).get()).readEntity(String.class);
 		RestCoordinatesToken coordinatesToken = XMLUtils.unmarshalObject(RestCoordinatesToken.class, editCoordinatesTokenXml);
 
 		return CoordinatesTokens.getOrCreate(coordinatesToken.token);
@@ -205,7 +205,7 @@ public class BaseTestCode
 	{
 		final String url = RestPaths.idAPIsPathComponent + RestPaths.idTranslateComponent + uuid.toString();
 		Response response = jt.target(url).queryParam(RequestParameters.inputType, "uuid").queryParam(RequestParameters.outputType, outputType).request()
-				.header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
+				.header(ACCEPT, MediaType.APPLICATION_XML).get();
 		String idXml = checkFail(response).readEntity(String.class);
 		RestId restId = XMLUtils.unmarshalObject(RestId.class, idXml);
 		return Integer.parseInt(restId.value);
@@ -227,7 +227,7 @@ public class BaseTestCode
 				webTarget = webTarget.queryParam(entry.getKey(), entry.getValue());
 			}
 		}
-		Response getDescriptionVersionsResponse = webTarget.request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
+		Response getDescriptionVersionsResponse = webTarget.request().header(ACCEPT, MediaType.APPLICATION_XML).get();
 		String descriptionVersionsResult = checkFail(getDescriptionVersionsResponse).readEntity(String.class);
 		return XMLUtils.unmarshalObjectArray(RestSemanticDescriptionVersion.class, descriptionVersionsResult);
 	}
@@ -243,7 +243,7 @@ public class BaseTestCode
 	public String getEditTokenString(String ssoTokenString)
 	{
 		Response getEditTokenResponse = jt.target(editTokenRequestPath.replaceFirst(RestPaths.appPathComponent, ""))
-				.queryParam(AuthRequestParameters.ssoToken, ssoTokenString).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
+				.queryParam(AuthRequestParameters.ssoToken, ssoTokenString).request().header(ACCEPT, MediaType.APPLICATION_XML).get();
 		String getEditTokenResponseResult = checkFail(getEditTokenResponse).readEntity(String.class);
 		RestEditToken restEditTokenObject = XMLUtils.unmarshalObject(RestEditToken.class, getEditTokenResponseResult);
 		return restEditTokenObject.token;
@@ -253,7 +253,7 @@ public class BaseTestCode
 	{
 		Response getEditTokenResponse = jt.target(editTokenRequestPath.replaceFirst(RestPaths.appPathComponent, ""))
 				.queryParam(AuthRequestParameters.ssoToken, ssoTokenString)
-				.queryParam(RequestParameters.editModule, module).request().header(Header.Accept.toString(), MediaType.APPLICATION_XML).get();
+				.queryParam(RequestParameters.editModule, module).request().header(ACCEPT, MediaType.APPLICATION_XML).get();
 		String getEditTokenResponseResult = checkFail(getEditTokenResponse).readEntity(String.class);
 		RestEditToken restEditTokenObject = XMLUtils.unmarshalObject(RestEditToken.class, getEditTokenResponseResult);
 		return restEditTokenObject.token;
@@ -262,7 +262,7 @@ public class BaseTestCode
 	public void loadBeer() throws IOException
 	{
 		File beer = new File("src/test/resources/turtle/bevontology-0.8.ttl");
-		TurtleImportMojoDirect timd = new TurtleImportMojoDirect();
+		TurtleImportHK2Direct timd = Get.service(TurtleImportHK2Direct.class);
 		timd.configure(null, beer.toPath(), "0.8", null);
 		timd.convertContent(update -> {}, (work, total) -> {});
 		Get.indexDescriptionService().refreshQueryEngine();

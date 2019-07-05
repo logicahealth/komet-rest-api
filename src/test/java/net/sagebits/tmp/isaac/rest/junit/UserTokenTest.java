@@ -30,7 +30,6 @@
 
 package net.sagebits.tmp.isaac.rest.junit;
 
-import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Test;
 import net.sagebits.tmp.isaac.rest.tokens.EditToken;
@@ -45,9 +44,7 @@ public class UserTokenTest
 	@Test
 	public void testTokenRoundTrip() throws Exception
 	{
-		UUID randomUuid = UUID.randomUUID();
-
-		EditToken ut = new EditToken(1, 2, 3, randomUuid);
+		EditToken ut = new EditToken(1, 2, 3);
 		String token = ut.getSerialized();
 
 		EditToken read = EditToken.read(token);

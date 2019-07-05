@@ -38,6 +38,7 @@ import javax.ws.rs.core.SecurityContext;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import net.sagebits.tmp.isaac.rest.ExpandUtil;
 import net.sagebits.tmp.isaac.rest.Util;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
@@ -59,6 +60,7 @@ import sh.isaac.api.component.semantic.version.DescriptionVersion;
 import sh.isaac.api.component.semantic.version.DynamicVersion;
 import sh.isaac.api.component.semantic.version.LongVersion;
 import sh.isaac.api.component.semantic.version.StringVersion;
+import sh.isaac.api.component.semantic.version.dynamic.DynamicUsageDescription;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.api.index.AuthorModulePathRestriction;
 import sh.isaac.api.index.ComponentSearchResult;
@@ -68,6 +70,7 @@ import sh.isaac.api.index.SearchResult;
 import sh.isaac.api.util.Interval;
 import sh.isaac.api.util.NumericUtils;
 import sh.isaac.api.util.UUIDUtil;
+import sh.isaac.model.semantic.DynamicUsageDescriptionImpl;
 import sh.isaac.model.semantic.types.DynamicStringImpl;
 import sh.isaac.provider.query.lucene.indexers.DescriptionIndexer;
 import sh.isaac.utility.Frills;
@@ -129,7 +132,7 @@ public class SearchAPIs
 	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
 	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
-	 *            the referencedConcept.
+	 *            the referencedConcept.  Sorted newest to oldest,
 	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
 	 *            cause the expanded version to also have the parent count populated.
 	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
@@ -164,6 +167,9 @@ public class SearchAPIs
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.descriptionTypes, RequestParameters.extendedDescriptionTypes, RequestParameters.PAGINATION_PARAM_NAMES,
 				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.uuid, ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable, 
+				ExpandUtil.versionsAllExpandable, ExpandUtil.countParents, ExpandUtil.includeParents);
 
 		if (StringUtils.isBlank(query))
 		{
@@ -199,9 +205,11 @@ public class SearchAPIs
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param restrictTo Optional a feature that will restrict the results descriptions attached to a concept that meet one of the specified
 	 *            criteria. Currently, this can be set to
-	 *            <br> "association" - to only return concepts that define association types
-	 *            <br> "mapset" - to only return concepts that define mapsets
-	 *            <br> "semantic" - to only return concepts that define semantics
+	 *            <br> "association" - to only return concepts that define association types, which are semantics with a specific structure
+	 *            <br> "mapset" - to only return concepts that define mapsets, which are semantics with a specific structure
+	 *            <br> "refset" - to only return concepts that define refsets, which are membership-only semantics.
+	 *            <br> "property" - to only return concepts that define properties, which are semantics that also have data column(s)
+	 *            <br> "semantic" - to only return concepts that define semantics (includes 'refset' and 'property' semantics.
 	 *            <br> "metadata" - to only return concepts that are defined in the metadata hierarchy.
 	 *            <br>This option can only be set to a single value per call - no combinations are allowed.
 	 * @param mergeOnConcept - Optional - if set to true - only one result will be returned per concept - even if that concept had 2 or more
@@ -216,7 +224,7 @@ public class SearchAPIs
 	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
 	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
-	 *            the referencedConcept.
+	 *            the referencedConcept.  Sorted newest to oldest,
 	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
 	 *            cause the expanded version to also have the parent count populated.
 	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
@@ -250,6 +258,9 @@ public class SearchAPIs
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.restrictTo, RequestParameters.mergeOnConcept, RequestParameters.expand,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.uuid, ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable, 
+				ExpandUtil.versionsAllExpandable, ExpandUtil.countParents, ExpandUtil.includeParents);
 
 		if (StringUtils.isBlank(query))
 		{
@@ -294,8 +305,6 @@ public class SearchAPIs
 						Optional<Integer> conNid = Frills.getNearestConcept(nid);
 						if (conNid.isPresent())
 						{
-							// TODO add a semantic on all static semantics so we can identify them. For now, we handle static 'identifier' semantics
-							// along with dynamic semantics... (But still miss refsets, etc)
 							boolean dynamic = Frills.definesDynamicSemantic(conNid.get());
 							if (dynamic)
 							{
@@ -303,7 +312,77 @@ public class SearchAPIs
 							}
 							else
 							{
-								return Frills.definesIdentifierSemantic(conNid.get());
+								if (Frills.definesIdentifierSemantic(conNid.get()))
+								{
+									return true;
+								}
+								Optional<Integer> staticType = Frills.getStaticSemanticType(conNid.get());
+								if (staticType.isPresent())
+								{
+									return true;
+								}
+								
+								//TODO handle other unannotated semantic types?
+							}
+						}
+						return false;
+					});
+					break;
+				case "refset":
+					filter = (nid -> {
+						Optional<Integer> conNid = Frills.getNearestConcept(nid);
+						if (conNid.isPresent())
+						{
+							try
+							{
+								DynamicUsageDescription dud = DynamicUsageDescriptionImpl.read(conNid.get());
+								return dud.getColumnInfo().length == 0;
+							}
+							catch (Exception e)
+							{
+								//not a dynamic refset, probe for some static refset types....
+								if (Frills.definesIdentifierSemantic(conNid.get()))
+								{
+									return false;
+								}
+								Optional<Integer> staticType = Frills.getStaticSemanticType(conNid.get());
+								if (staticType.isPresent())
+								{
+									//If it has this annotation, then the answer is true, unless its a membership semantic.
+									return staticType.get() == MetaData.MEMBERSHIP_SEMANTIC____SOLOR.getNid();
+								}
+								//TODO handle other unannotated semantic types?
+								return false;
+							}
+						}
+						return false;
+					});
+					break;
+				case "property":
+					filter = (nid -> {
+						Optional<Integer> conNid = Frills.getNearestConcept(nid);
+						if (conNid.isPresent())
+						{
+							try
+							{
+								DynamicUsageDescription dud = DynamicUsageDescriptionImpl.read(conNid.get());
+								return dud.getColumnInfo().length > 0;
+							}
+							catch (Exception e)
+							{
+								//not a dynamic refset, probe for some static refset types....
+								if (Frills.definesIdentifierSemantic(conNid.get()))
+								{
+									return true;
+								}
+								Optional<Integer> staticType = Frills.getStaticSemanticType(conNid.get());
+								if (staticType.isPresent())
+								{
+									//If it has this annotation, then the answer is true, unless its a membership semantic.
+									return staticType.get() != MetaData.MEMBERSHIP_SEMANTIC____SOLOR.getNid();
+								}
+								//TODO handle other unannotated semantic types?
+								return false;
 							}
 						}
 						return false;
@@ -314,7 +393,7 @@ public class SearchAPIs
 					filter = null;
 					break;
 				default :
-					throw new RestException("restrictTo", "Invalid restriction.  Must be 'association', 'mapset', 'semantic' or 'metadata'");
+					throw new RestException("restrictTo", "Invalid restriction.  Must be 'association', 'mapset', 'refset', 'property', 'semantic' or 'metadata'");
 			}
 		}
 
@@ -472,7 +551,7 @@ public class SearchAPIs
 	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
 	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
-	 *            the referencedConcept.
+	 *            the referencedConcept.  Sorted newest to oldest,
 	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
 	 *            cause the expanded version to also have the parent count populated.
 	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
@@ -508,6 +587,9 @@ public class SearchAPIs
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.treatAsString, RequestParameters.semanticAssemblageId, RequestParameters.dynamicSemanticColumns,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.uuid, ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable, 
+				ExpandUtil.versionsAllExpandable, ExpandUtil.countParents, ExpandUtil.includeParents);
 
 		String restPath = RestPaths.searchAppPathComponent + RestPaths.semanticsComponent + "?" + RequestParameters.query + "=" + query + "&"
 				+ RequestParameters.treatAsString + "=" + treatAsString;
@@ -628,7 +710,7 @@ public class SearchAPIs
 	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
 	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
-	 *            the referencedConcept.
+	 *            the referencedConcept.  Sorted newest to oldest,
 	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
 	 *            cause the expanded version to also have the parent count populated.
 	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
@@ -663,6 +745,9 @@ public class SearchAPIs
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.nid,
 				RequestParameters.semanticAssemblageId, RequestParameters.dynamicSemanticColumns, RequestParameters.PAGINATION_PARAM_NAMES,
 				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.uuid, ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable, 
+				ExpandUtil.versionsAllExpandable, ExpandUtil.countParents, ExpandUtil.includeParents);
 
 		String restPath = RestPaths.searchAppPathComponent + RestPaths.forReferencedComponentComponent + "?" + RequestParameters.nid + "=" + nid;
 		if (semanticAssemblageId != null)
@@ -703,7 +788,7 @@ public class SearchAPIs
 	 *            <br> 'versionsLatestOnly' if 'referencedConcept' is included in the expand list, you may also include 'versionsLatestOnly' to return
 	 *            the latest version of the referenced concept chronology.
 	 *            <br> 'versionsAll' if 'referencedConcept is included in the expand list, you may also include 'versionsAll' to return all versions of
-	 *            the referencedConcept.
+	 *            the referencedConcept.  Sorted newest to oldest,
 	 *            <br>'countParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - will 
 	 *            cause the expanded version to also have the parent count populated.
 	 *            <br> 'includeParents' - may only be specified in combination with 'referencedConcept' and ('versionsLatestOnly' or 'versionsAll') - 
@@ -731,6 +816,9 @@ public class SearchAPIs
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.query,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.uuid, ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable, 
+				ExpandUtil.versionsAllExpandable, ExpandUtil.countParents, ExpandUtil.includeParents);
 
 		List<SearchResult> results = new ArrayList<>();
 		final String restPath = RestPaths.searchAppPathComponent + RestPaths.idComponent + "?" + RequestParameters.query + "=" + query;

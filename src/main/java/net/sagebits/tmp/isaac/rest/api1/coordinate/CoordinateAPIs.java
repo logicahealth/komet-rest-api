@@ -304,7 +304,7 @@ public class CoordinateAPIs
 	 * 
 	 * This method returns a <code>RestEditToken</code>, which is an encrypted String that is used internally
 	 * to authenticate and convey user and session information between KOMET and PRISME. Information conveyed includes
-	 * user, module, and path concepts as well as, optionally, a workflow process. Each EditToken expires after a set amount of time
+	 * user, module, and path concepts.  Each EditToken expires after a set amount of time
 	 * and is otherwise usable.
 	 * 
 	 * Each write token can only be used for one write operation - after that, is is unusable for further write operations (but may be used 
@@ -323,11 +323,10 @@ public class CoordinateAPIs
 	 * @param userName - optional - a user name to authenticate against local auth - must be used with password
 	 * @param email  - optional - an e-mail address (instead of a username) to authenticate against local auth - must be used with password
 	 * @param password  - optional - the password to authenticate against local in combination with  username or email.
-	 * @param editToken - optional previously-retrieved editToken string encoding user, module, path concept ids and optional workflow process id. 
+	 * @param editToken - optional previously-retrieved editToken string encoding user, module, path concept ids. 
 	 *     If sent in combination with an ssoToken, or other user identifying information, the user details must align.
 	 * @param editModule - optional module concept id
 	 * @param editPath - optional path concept id
-	 * @param processId 
 	 *
 	 * @return RestEditToken
 	 * @throws RestException
@@ -343,8 +342,7 @@ public class CoordinateAPIs
 			@QueryParam(AuthRequestParameters.password) String password, // Applied in RestContainerRequestFilter
 			@QueryParam(RequestParameters.editToken) String editToken, // Applied in RestContainerRequestFilter
 			@QueryParam(RequestParameters.editModule) String editModule, // Applied in RestContainerRequestFilter
-			@QueryParam(RequestParameters.editPath) String editPath, // Applied in RestContainerRequestFilter
-			@QueryParam(RequestParameters.processId) String processId // Applied in RestContainerRequestFilter
+			@QueryParam(RequestParameters.editPath) String editPath // Applied in RestContainerRequestFilter
 	) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), 
@@ -362,14 +360,9 @@ public class CoordinateAPIs
 		{
 			Integer module = null;
 			Integer path = null;
-			UUID workflowProcessId = null;
 			
 			EditCoordinate defaultEditCoordinate = RequestInfo.getDefaultEditCoordinate();
 			
-			if (StringUtils.isNotBlank(processId))
-			{
-				workflowProcessId = RequestInfoUtils.parseUuidParameter(RequestParameters.processId, processId);
-			}
 			if (StringUtils.isNotBlank(editModule))
 			{
 				module = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.editModule, editModule);
@@ -387,8 +380,7 @@ public class CoordinateAPIs
 			}
 			
 			return new RestEditToken(new EditToken(Get.identifierService().getNidForUuids(user.get().userId),
-					module != null ? module : defaultEditCoordinate.getModuleNid(), path != null ? path : defaultEditCoordinate.getPathNid(),
-					workflowProcessId));
+					module != null ? module : defaultEditCoordinate.getModuleNid(), path != null ? path : defaultEditCoordinate.getPathNid()));
 		}
 		else
 		{

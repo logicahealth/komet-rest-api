@@ -48,7 +48,7 @@ import sh.isaac.api.identity.StampedVersion;
  */
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE, setterVisibility = JsonAutoDetect.Visibility.NONE)
 @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY)
-public class RestStampedVersion
+public class RestStampedVersion implements Comparable<RestStampedVersion>
 {
 	/**
 	 * The Status of this version (active, inactive, primordial or cancelled)
@@ -116,5 +116,14 @@ public class RestStampedVersion
 	public String toString()
 	{
 		return "RestStampedVersion [state=" + state + ", time=" + time + ", author=" + authorUUID + ", module=" + moduleUUID + ", path=" + pathUUID + "]";
+	}
+
+	/**
+	 * @see java.lang.Comparable#compareTo(java.lang.Object)
+	 */
+	@Override
+	public int compareTo(RestStampedVersion o)
+	{
+		return Long.compare(this.time, o.time);
 	}
 }

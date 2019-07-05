@@ -271,6 +271,42 @@ public class UserService
 	}
 	
 	/**
+	 * @param user The user to remove
+	 * @return true if the user existed, and was removed.  False if the user did not exist
+	 */
+	public boolean removeUser(UUID user)
+	{
+		Optional<User> userObject = getUser(user);
+		if (userObject.isPresent())
+		{
+			users_.remove(user);
+			if (StringUtils.isNotBlank(userObject.get().getUserName()))
+			{
+				uniqueUserName_.remove(userObject.get().getUserName().toLowerCase());
+			}
+			if (StringUtils.isNotBlank(userObject.get().getEmail()))
+			{
+				uniqueEmail_.remove(userObject.get().getEmail().toLowerCase());
+			}
+			try
+			{
+				save();
+			}
+			catch (IOException e)
+			{
+				log.error("Error writing user store", e);
+			}
+			log.info("Removed user {}", userObject);
+			return true;
+		}
+		else
+		{
+			log.info("Remove called with user that isn't present: {}");
+			return false;
+		}
+	}
+	
+	/**
 	 * Lookup a user via either their username (login name) or their email address.
 	 * @param userNameOrEmail
 	 * @return

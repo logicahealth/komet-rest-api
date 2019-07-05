@@ -30,7 +30,6 @@
 
 package net.sagebits.tmp.isaac.rest.api1.data.semantic;
 
-import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.logging.log4j.LogManager;
@@ -43,7 +42,9 @@ import net.sagebits.tmp.isaac.rest.api1.data.logic.RestLogicNodeFactory;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import sh.isaac.api.Get;
 import sh.isaac.api.component.semantic.version.LogicGraphVersion;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.logic.LogicalExpression;
+import sh.isaac.model.coordinate.ManifoldCoordinateImpl;
 import sh.isaac.utility.Frills;
 
 /**
@@ -62,20 +63,20 @@ public class RestSemanticLogicGraphVersion extends RestSemanticVersion
 	 * The String text of the description of the associated concept
 	 */
 	@XmlElement
-	String referencedConceptDescription;
+	public String referencedConceptDescription;
 
 	/**
 	 * A boolean indicating whether the concept referred to by this
 	 * RestSemanticLogicGraphVersion is defined rather than primitive
 	 */
 	@XmlElement
-	boolean isReferencedConceptDefined;
+	public boolean isReferencedConceptDefined;
 
 	/**
 	 * The root node of the logical expression tree associated with the concept
 	 */
 	@XmlElement
-	RestLogicNode rootLogicNode;
+	public RestLogicNode rootLogicNode;
 
 	protected RestSemanticLogicGraphVersion()
 	{
@@ -83,28 +84,32 @@ public class RestSemanticLogicGraphVersion extends RestSemanticVersion
 	}
 
 	/**
-	 * @param lgs
-	 *            - A LogicGraphVersion
-	 * @param includeChronology
-	 *            - A boolean value indicating whether or not the
-	 *            RestSemanticLogicGraphVersion should include a populated
-	 *            chronology
-	 * @param processId 
+	 * @param lgs - A LogicGraphVersion
+	 * @param includeChronology - - A boolean value indicating whether or not the RestSemanticLogicGraphVersion should include a populated chronology
+	 * @param expandReferenced - 
+	 * @param useLatestStampForExpansions true, to use the latest stamp from the request info when populating expansions.  False, to use a stamp
+	 *     which is constructed from the fields of the provided sv (this is normally what should be used when populating a list of all versions, so 
+	 *     that the expanded items match the point in time from the version being populated
 	 * @throws RestException
-	 * 
-	 *             Constructor for RestSemanticLogicGraphVersion taking a
-	 *             LogicGraphVersion
 	 */
-	public RestSemanticLogicGraphVersion(LogicGraphVersion lgs, boolean includeChronology, UUID processId) throws RestException
+	public RestSemanticLogicGraphVersion(LogicGraphVersion lgs, boolean includeChronology, boolean expandReferenced, boolean useLatestStampForExpansions) 
+			throws RestException
 	{
 		super();
-		setup(lgs, includeChronology, false, false, null, processId);
+		setup(lgs, includeChronology, false, expandReferenced, useLatestStampForExpansions, null);
 
 		referencedConceptDescription = Get.conceptService().getSnapshot(RequestInfo.get().getManifoldCoordinate())
 				.conceptDescriptionText(lgs.getReferencedComponentNid());
 		LOG.debug("Constructing REST logic graph for {} from LogicalExpression\n{}", new RestIdentifiedObject(lgs.getReferencedComponentNid()).toString(),
 				lgs.getLogicalExpression().toString());
-		rootLogicNode = constructRootRestLogicNodeFromLogicGraphVersion(lgs);
+		
+		ManifoldCoordinate coordForRead = RequestInfo.get().getManifoldCoordinate();
+		if (!useLatestStampForExpansions)
+		{
+			coordForRead = new ManifoldCoordinateImpl(computeVersionStamp(lgs, useLatestStampForExpansions), coordForRead.getLanguageCoordinate());
+		}
+		
+		rootLogicNode = constructRootRestLogicNodeFromLogicGraphVersion(lgs, coordForRead);
 		try
 		{
 			isReferencedConceptDefined = Frills.isConceptFullyDefined(lgs);
@@ -125,7 +130,7 @@ public class RestSemanticLogicGraphVersion extends RestSemanticVersion
 	 *         Constructs a RestUntypedConnectorNode with NodeSemantic of
 	 *         DEFINITION_ROOT which is the root of the logic graph tree
 	 */
-	private static RestLogicNode constructRootRestLogicNodeFromLogicGraphVersion(LogicGraphVersion lgs)
+	private static RestLogicNode constructRootRestLogicNodeFromLogicGraphVersion(LogicGraphVersion lgs, ManifoldCoordinate coordForRead)
 	{
 		LogicalExpression le = lgs.getLogicalExpression();
 
@@ -143,7 +148,7 @@ public class RestSemanticLogicGraphVersion extends RestSemanticVersion
 						le.getNode(i).getClass().getName(), le.getNode(i));
 			}
 
-			return RestLogicNodeFactory.create(le.getRoot());
+			return RestLogicNodeFactory.create(le.getRoot(), coordForRead);
 		}
 		else
 		{ // (le.getNodeCount() <= 0) {

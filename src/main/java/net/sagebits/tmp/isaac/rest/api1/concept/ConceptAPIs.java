@@ -31,6 +31,8 @@
 package net.sagebits.tmp.isaac.rest.api1.concept;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
@@ -51,6 +53,7 @@ import net.sagebits.tmp.isaac.rest.ExpandUtil;
 import net.sagebits.tmp.isaac.rest.Util;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
+import net.sagebits.tmp.isaac.rest.api1.data.RestStampedVersion;
 import net.sagebits.tmp.isaac.rest.api1.data.concept.RestConceptChronology;
 import net.sagebits.tmp.isaac.rest.api1.data.concept.RestConceptVersion;
 import net.sagebits.tmp.isaac.rest.api1.data.semantic.RestSemanticDescriptionVersion;
@@ -61,6 +64,7 @@ import net.sagebits.tmp.isaac.rest.session.RequestParameters;
 import sh.isaac.MetaData;
 import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
+import sh.isaac.api.chronicle.Version;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptService;
 import sh.isaac.api.component.concept.ConceptVersion;
@@ -114,10 +118,6 @@ public class ConceptAPIs
 	 *            if the terminology
 	 *            module is excluded from the view coordinate.
 	 * @param expand - comma separated list of fields to expand. Supports 'chronology'
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -137,17 +137,18 @@ public class ConceptAPIs
 			@QueryParam(RequestParameters.countChildren) @DefaultValue("false") String countChildren,
 			@QueryParam(RequestParameters.semanticMembership) @DefaultValue("false") String semanticMembership,
 			@QueryParam(RequestParameters.terminologyType) @DefaultValue("false") String terminologyType, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.includeParents,
 				RequestParameters.countParents, RequestParameters.includeChildren, RequestParameters.countChildren, RequestParameters.semanticMembership,
-				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
-
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
+				RequestParameters.terminologyType, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, 
+				RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.chronologyExpandable);
 
 		ConceptChronology concept = findConceptChronology(id);
-		LatestVersion<ConceptVersion> cv = concept.getLatestVersion(Util.getPreWorkflowStampCoordinate(processIdUUID, concept.getNid()));
+		LatestVersion<ConceptVersion> cv = concept.getLatestVersion(RequestInfo.get().getStampCoordinate());
 		if (cv.isPresent())
 		{
 			// TODO handle contradictions
@@ -155,7 +156,7 @@ public class ConceptAPIs
 			return new RestConceptVersion(cv.get(), RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable),
 					Boolean.parseBoolean(includeParents.trim()), Boolean.parseBoolean(countParents.trim()), Boolean.parseBoolean(includeChildren.trim()),
 					Boolean.parseBoolean(countChildren.trim()), RequestInfo.get().getStated(), Boolean.parseBoolean(semanticMembership.trim()),
-					Boolean.parseBoolean(terminologyType.trim()), processIdUUID);
+					Boolean.parseBoolean(terminologyType.trim()), true);
 		}
 		throw new RestException(RequestParameters.id, id, "No version on coordinate path for concept with the specified id");
 	}
@@ -164,16 +165,16 @@ public class ConceptAPIs
 	 * Returns the chronology of a concept.
 	 * 
 	 * @param id - A UUID, or nid
-	 * @param expand - comma separated list of fields to expand. Supports 'versionsAll', 'versionsLatestOnly'
-	 *            If latest only is specified in combination with versionsAll, it is ignored (all versions are returned)
+	 * @param expand - comma separated list of fields to expand. Supports:
+	 *     <br> 'versionsAll' - returns all versions of the concept.  Note that, this only includes all versions for the top level concept chronology.
+	 *         For nested objects, the most appropriate version is returned, relative to the version of the concept being returned.  In other words, the STAMP 
+	 *         of the concept version being returned is used to calculate the appropriate stamp for the referenced component versions, when they are looked up.
+	 *         Sorted newest to oldest
+	 *     <br> 'versionsLatestOnly' - ignored if specified in combination with versionsAll
 	 * @param terminologyType - when true, the concept nids of the terminologies that this concept is part of on any stamp is returned. This
 	 *            is determined by whether or not there is version of this concept present with a module that extends from one of the children of the
 	 *            {@link MetaData#MODULE____SOLOR} concepts. This is returned as an array, as a concept may exist in multiple terminologies at the same time.
 	 *            This is calculated WITHOUT taking into account view coordinates, or active / inactive states of the concept.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -187,17 +188,18 @@ public class ConceptAPIs
 	@Path(RestPaths.chronologyComponent + "{" + RequestParameters.id + "}")
 	public RestConceptChronology getConceptChronology(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.terminologyType) @DefaultValue("false") String terminologyType,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.terminologyType, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.terminologyType, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.versionsAllExpandable, ExpandUtil.versionsLatestOnlyExpandable);
 
 		ConceptChronology concept = findConceptChronology(id);
 
 		RestConceptChronology chronology = new RestConceptChronology(concept, RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-				RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), Boolean.parseBoolean(terminologyType.trim()),
-				Util.validateWorkflowProcess(processId));
+				RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), Boolean.parseBoolean(terminologyType.trim()));
 
 		return chronology;
 	}
@@ -249,10 +251,7 @@ public class ConceptAPIs
 	 * @param expand - A comma separated list of fields to expand. Supports 'referencedDetails'.
 	 *            When referencedDetails is passed, nids will include type information, and certain nids will also include their descriptions,
 	 *            if they represent a concept or a description semantic.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
+	 * @param includeAllVersions - when true, will return all existing versions of the semantic instances, ignoring the coordinates.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -267,18 +266,21 @@ public class ConceptAPIs
 	@Path(RestPaths.descriptionsComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticDescriptionVersion[] getDescriptions(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.includeAttributes) @DefaultValue(RequestParameters.includeAttributesDefault) String includeAttributes,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.processId) String processId,
+			@QueryParam(RequestParameters.expand) String expand, 
+			@QueryParam(RequestParameters.includeAllVersions) @DefaultValue("false") String includeAllVersions,
 			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id,
-				RequestParameters.includeAttributes, RequestParameters.processId, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES
-				, RequestParameters.altId);
+				RequestParameters.includeAttributes, RequestParameters.includeAllVersions, RequestParameters.expand, 
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.referencedDetails);
 
 		ArrayList<RestSemanticDescriptionVersion> result = new ArrayList<>();
 		RestSemanticVersion[] descriptions = SemanticAPIs.get(findConceptChronology(id).getNid() + "", getAllDescriptionTypes(), null, true,
-				Boolean.parseBoolean(includeAttributes.trim()), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), true, false, false,
-				Util.validateWorkflowProcess(processId));
+				Boolean.parseBoolean(includeAttributes.trim()), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), 
+				Boolean.parseBoolean(includeAllVersions.trim()), true, false, false);
 
 		for (RestSemanticVersion d : descriptions)
 		{
@@ -329,5 +331,55 @@ public class ConceptAPIs
 			//noop
 		}
 		s.release();
+	}
+	
+	/**
+	 * All unique stamps found on the concept, or on any recursively attached semantics.  This call ignore any and all coordinates passed in.
+	 * 
+	 * Stamps are returned sorted from oldest to newest.
+	 * 
+	 * @param id - A UUID, or nid
+	 * @return All unique stamps found on the specific concepts, or any semantics attached to it, including recursively attached semantics.
+	 * @throws RestException
+	 */
+	@GET
+	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
+	@Path(RestPaths.versionsComponent + "{" + RequestParameters.id + "}")
+	public RestStampedVersion[] getStampsForConcept(@PathParam(RequestParameters.id) String id) throws RestException
+	{
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id);
+
+		ConceptChronology concept = findConceptChronology(id);
+		
+		HashMap<Integer, RestStampedVersion> uniqueStamps = new HashMap<>();
+		
+		for (Version v : concept.getVersionList())
+		{
+			if (!uniqueStamps.containsKey(v.getStampSequence()))
+			{
+				uniqueStamps.put(v.getStampSequence(), new RestStampedVersion(v));
+			}
+		}
+		
+		processSemantics(concept.getNid(), uniqueStamps);
+		
+		RestStampedVersion[] result = uniqueStamps.values().toArray(new RestStampedVersion[uniqueStamps.size()]);
+		Arrays.sort(result);
+		return result;
+	}
+	
+	private void processSemantics(int component, HashMap<Integer, RestStampedVersion> uniqueStamps)
+	{
+		Get.assemblageService().getSemanticChronologyStreamForComponent(component).forEach(sc ->
+		{
+			for (Version v : sc.getVersionList())
+			{
+				if (!uniqueStamps.containsKey(v.getStampSequence()))
+				{
+					uniqueStamps.put(v.getStampSequence(), new RestStampedVersion(v));
+				}
+			}
+			processSemantics(sc.getNid(), uniqueStamps);
+		});
 	}
 }

@@ -30,7 +30,6 @@
 
 package net.sagebits.tmp.isaac.rest;
 
-import java.io.InputStream;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -155,13 +154,13 @@ public class Util
 		}
 	}
 
-	/**
-	 * @param workflowProcessId - The optional workflowProcessId. If non-blank, this must be a valid process id.
-	 * @return - the validated UUID, or null, if no workflowProcessId is submitted.
-	 * @throws RestException - if the provided non-blank value isn't valid.
-	 */
-	public static UUID validateWorkflowProcess(String workflowProcessId) throws RestException
-	{
+//	/**
+//	 * @param workflowProcessId - The optional workflowProcessId. If non-blank, this must be a valid process id.
+//	 * @return - the validated UUID, or null, if no workflowProcessId is submitted.
+//	 * @throws RestException - if the provided non-blank value isn't valid.
+//	 */
+//	public static UUID validateWorkflowProcess(String workflowProcessId) throws RestException
+//	{
 //		Optional<UUID> processIdOptional = RequestInfoUtils.parseUuidParameterIfNonBlank(RequestParameters.processId, workflowProcessId);
 //		if (processIdOptional.isPresent())
 //		{
@@ -174,51 +173,51 @@ public class Util
 //		}
 //		else
 //		{
-			return null;
+//			return null;
 //		}
-	}
-
-	/**
-	 * Calls {@link #getPreWorkflowStampCoordinate(UUID, int)} after calling {@link #validateWorkflowProcess(String)}
-	 * 
-	 * @param workflowProcessId
-	 * @param componentNid
-	 * @return the coordinate
-	 * @throws RestException
-	 */
-	public static StampCoordinate getPreWorkflowStampCoordinate(String workflowProcessId, int componentNid) throws RestException
-	{
-		return getPreWorkflowStampCoordinate(workflowProcessId, componentNid, RequestInfo.get().getStampCoordinate());
-	}
-
-	public static StampCoordinate getPreWorkflowStampCoordinate(String workflowProcessId, int componentNid, StampCoordinate sc) throws RestException
-	{
-		return getPreWorkflowStampCoordinate(
-				// validateWorkflowProcess(workflowProcessId),
-				(UUID) null, componentNid, sc);
-	}
-
-	/**
-	 * If a workflowProcessId is passed, and the componentNid is present in the workflow, return the stamp
-	 * that occurred prior to the first change in workflow. Otherwise, returns the user specified stamp coordinate, from
-	 * {@link RequestInfo#getStampCoordinate()}
-	 * 
-	 * @param workflowProcessId - the id of the workflow process. If not provided, this method returns the result of
-	 *            {@link RequestInfo#getStampCoordinate()}
-	 * @param componentNid - the component to check for in the workflow. The componentNid must be a valid component identifier.
-	 *            If the component is not found in the workflow, the result of this method is simply {@link RequestInfo#getStampCoordinate()}
-	 * @return the found coordinate
-	 */
-	public static StampCoordinate getPreWorkflowStampCoordinate(UUID workflowProcessId, int componentNid)
-	{
-		return getPreWorkflowStampCoordinate(workflowProcessId, componentNid, RequestInfo.get().getStampCoordinate());
-	}
-
-	public static StampCoordinate getPreWorkflowStampCoordinate(UUID workflowProcessId, int componentNid, StampCoordinate sc)
-	{
+//	}
+//
+//	/**
+//	 * Calls {@link #getPreWorkflowStampCoordinate(UUID, int)} after calling {@link #validateWorkflowProcess(String)}
+//	 * 
+//	 * @param workflowProcessId
+//	 * @param componentNid
+//	 * @return the coordinate
+//	 * @throws RestException
+//	 */
+//	public static StampCoordinate getPreWorkflowStampCoordinate(String workflowProcessId, int componentNid) throws RestException
+//	{
+//		return getPreWorkflowStampCoordinate(workflowProcessId, componentNid, RequestInfo.get().getStampCoordinate());
+//	}
+//
+//	public static StampCoordinate getPreWorkflowStampCoordinate(String workflowProcessId, int componentNid, StampCoordinate sc) throws RestException
+//	{
+//		return getPreWorkflowStampCoordinate(
+//				// validateWorkflowProcess(workflowProcessId),
+//				(UUID) null, componentNid, sc);
+//	}
+//
+//	/**
+//	 * If a workflowProcessId is passed, and the componentNid is present in the workflow, return the stamp
+//	 * that occurred prior to the first change in workflow. Otherwise, returns the user specified stamp coordinate, from
+//	 * {@link RequestInfo#getStampCoordinate()}
+//	 * 
+//	 * @param workflowProcessId - the id of the workflow process. If not provided, this method returns the result of
+//	 *            {@link RequestInfo#getStampCoordinate()}
+//	 * @param componentNid - the component to check for in the workflow. The componentNid must be a valid component identifier.
+//	 *            If the component is not found in the workflow, the result of this method is simply {@link RequestInfo#getStampCoordinate()}
+//	 * @return the found coordinate
+//	 */
+//	public static StampCoordinate getPreWorkflowStampCoordinate(UUID workflowProcessId, int componentNid)
+//	{
+//		return getPreWorkflowStampCoordinate(workflowProcessId, componentNid, RequestInfo.get().getStampCoordinate());
+//	}
+//
+//	public static StampCoordinate getPreWorkflowStampCoordinate(UUID workflowProcessId, int componentNid, StampCoordinate sc)
+//	{
 //		if (workflowProcessId == null)
 //		{
-		return sc;
+//		return sc;
 //		}
 //		else
 //		{
@@ -232,7 +231,7 @@ public class Util
 //				return sc;
 //			}
 //		}
-	}
+//	}
 
 	/**
 	 * @param dateString - if null or blank, returns 0.
@@ -266,41 +265,41 @@ public class Util
 		}
 	}
 
-	public static InputStream getTerminologyConfigData()
-	{
-		// Prisme injects this into the war file, at deployment time.
-		log.debug("Looking for TerminologyConfig.xml from prisme");
-		InputStream is = Util.class.getClassLoader().getResourceAsStream("/prisme_files/TerminologyConfig.xml");
-		if (is == null)
-		{
-			log.warn("Failed to find TerminologyConfig.xml from prisme!  Using embedded default config!");
-			// this file comes from the vhat-constants module
-			is = Util.class.getClassLoader().getResourceAsStream("/TerminologyConfigDefault.xml");
-		}
-		if (is == null)
-		{
-			throw new RuntimeException("Unable to find Terminology Config!");
-		}
-		return is;
-	}
-
-	public static InputStream getTerminologyConfigSchema()
-	{
-		// Prisme injects this into the war file, at deployment time.
-		log.debug("Looking for TerminologyConfig.xsd from prisme");
-		InputStream is = Util.class.getClassLoader().getResourceAsStream("/prisme_files/TerminologyConfig.xsd");
-		if (is == null)
-		{
-			log.warn("Failed to find TerminologyConfig.xsd from prisme!  Using embedded default config!");
-			// this file comes from the vhat-constants module
-			is = Util.class.getClassLoader().getResourceAsStream("/TerminologyConfig.xsd.hidden");
-		}
-		if (is == null)
-		{
-			throw new RuntimeException("Unable to find Terminology Config Schema!!");
-		}
-		return is;
-	}
+//	public static InputStream getTerminologyConfigData()
+//	{
+//		// Prisme injects this into the war file, at deployment time.
+//		log.debug("Looking for TerminologyConfig.xml from prisme");
+//		InputStream is = Util.class.getClassLoader().getResourceAsStream("/prisme_files/TerminologyConfig.xml");
+//		if (is == null)
+//		{
+//			log.warn("Failed to find TerminologyConfig.xml from prisme!  Using embedded default config!");
+//			// this file comes from the vhat-constants module
+//			is = Util.class.getClassLoader().getResourceAsStream("/TerminologyConfigDefault.xml");
+//		}
+//		if (is == null)
+//		{
+//			throw new RuntimeException("Unable to find Terminology Config!");
+//		}
+//		return is;
+//	}
+//
+//	public static InputStream getTerminologyConfigSchema()
+//	{
+//		// Prisme injects this into the war file, at deployment time.
+//		log.debug("Looking for TerminologyConfig.xsd from prisme");
+//		InputStream is = Util.class.getClassLoader().getResourceAsStream("/prisme_files/TerminologyConfig.xsd");
+//		if (is == null)
+//		{
+//			log.warn("Failed to find TerminologyConfig.xsd from prisme!  Using embedded default config!");
+//			// this file comes from the vhat-constants module
+//			is = Util.class.getClassLoader().getResourceAsStream("/TerminologyConfig.xsd.hidden");
+//		}
+//		if (is == null)
+//		{
+//			throw new RuntimeException("Unable to find Terminology Config Schema!!");
+//		}
+//		return is;
+//	}
 
 	public static CommitRecord commitCheck(CommitTask commitTask) throws RestException
 	{

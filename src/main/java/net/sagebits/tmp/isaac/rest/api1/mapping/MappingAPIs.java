@@ -104,10 +104,6 @@ public class MappingAPIs
 
 	/**
 	 * 
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param expand - A comma separated list of fields to expand. Supports 'comments'. When comments is passed, the latest comment(s) attached to
@@ -124,15 +120,15 @@ public class MappingAPIs
 	@GET
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.mappingSetsComponent)
-	public RestMappingSetVersion[] getMappingSets(@QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.coordToken) String coordToken,
+	public RestMappingSetVersion[] getMappingSets(@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.comments);
 
 		ArrayList<RestMappingSetVersion> results = new ArrayList<>();
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 
 		Get.assemblageService().getSemanticChronologyStream(IsaacMappingConstants.get().DYNAMIC_SEMANTIC_MAPPING_SEMANTIC_TYPE.getNid()).forEach(semanticC -> {
 			// We don't change the state / care about the state on the semantic. We update the state on the concept.
@@ -145,7 +141,7 @@ public class MappingAPIs
 			{
 				ConceptChronology cc = Get.conceptService().getConceptChronology(latest.get().getReferencedComponentNid());
 
-				StampCoordinate conceptCoord = Util.getPreWorkflowStampCoordinate(processIdUUID, cc.getNid());
+				StampCoordinate conceptCoord = RequestInfo.get().getStampCoordinate();
 				LatestVersion<ConceptVersion> cv = cc.getLatestVersion(conceptCoord);
 				Util.logContradictions(log, cv);
 
@@ -153,8 +149,7 @@ public class MappingAPIs
 				{
 					// TODO handle contradictions
 					Util.logContradictions(log, cv);
-					results.add(new RestMappingSetVersion(cv.get(), latest.get(), conceptCoord, RequestInfo.get().shouldExpand(ExpandUtil.comments),
-							processIdUUID));
+					results.add(new RestMappingSetVersion(cv.get(), latest.get(), conceptCoord, RequestInfo.get().shouldExpand(ExpandUtil.comments)));
 				}
 			}
 		});
@@ -165,10 +160,6 @@ public class MappingAPIs
 	 * @param id - A UUID or nid of a concept that identifies the map set.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - A comma separated list of fields to expand. Supports 'comments'. When comments is passed, the latest comment(s) attached to
 	 *            each mapSet are included.
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -184,16 +175,17 @@ public class MappingAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.mappingSetComponent + "{" + RequestParameters.id + "}")
 	public RestMappingSetVersion getMappingSet(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.comments);
 
-		return getMappingSet(id, processId);
+		return getMappingSet(id);
 	}
 
-	static RestMappingSetVersion getMappingSet(String id, String processId) throws RestException
+	static RestMappingSetVersion getMappingSet(String id) throws RestException
 	{
 		Optional<SemanticChronology> semantic = Get.assemblageService().getSemanticChronologyStreamForComponentFromAssemblage(
 				ConceptAPIs.findConceptChronology(id).getNid(), IsaacMappingConstants.get().DYNAMIC_SEMANTIC_MAPPING_SEMANTIC_TYPE.getNid()).findAny();
@@ -203,23 +195,21 @@ public class MappingAPIs
 			throw new RestException("The map set identified by '" + id + "' is not present");
 		}
 
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
-
 		@SuppressWarnings({ "rawtypes" })
-		LatestVersion<DynamicVersion> latest = semantic.get().getLatestVersion(Util.getPreWorkflowStampCoordinate(processIdUUID, semantic.get().getNid()));
+		LatestVersion<DynamicVersion> latest = semantic.get().getLatestVersion(RequestInfo.get().getStampCoordinate());
 		Util.logContradictions(log, latest);
 		if (latest.isPresent())
 		{
 			ConceptChronology cc = Get.conceptService().getConceptChronology(latest.get().getReferencedComponentNid());
 
-			StampCoordinate conceptCoord = Util.getPreWorkflowStampCoordinate(processIdUUID, cc.getNid());
+			StampCoordinate conceptCoord = RequestInfo.get().getStampCoordinate();
 			LatestVersion<ConceptVersion> cv = cc.getLatestVersion(conceptCoord);
 			Util.logContradictions(log, cv);
 
 			if (cv.isPresent())
 			{
 				// TODO handle contradictions
-				return new RestMappingSetVersion(cv.get(), latest.get(), conceptCoord, RequestInfo.get().shouldExpand(ExpandUtil.comments), processIdUUID);
+				return new RestMappingSetVersion(cv.get(), latest.get(), conceptCoord, RequestInfo.get().shouldExpand(ExpandUtil.comments));
 			}
 			else
 			{
@@ -266,10 +256,6 @@ public class MappingAPIs
 	 * @param expand - A comma separated list of fields to expand. Supports 'referencedDetails,comments'. When referencedDetails is passed,
 	 *            descriptions will be included for all referenced concepts which align with your current coordinates. When comments is passed, all
 	 *            comments attached to each mapItem are included.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -285,12 +271,13 @@ public class MappingAPIs
 	public RestMappingItemVersionPage getMappingItemPage(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(250 + "") int maxPageSize, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id,
-				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, 
-				RequestParameters.altId);
+				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.referencedDetails, ExpandUtil.comments);
 
 		ArrayList<RestMappingItemVersion> items = new ArrayList<>();
 
@@ -298,19 +285,17 @@ public class MappingAPIs
 
 		Positions positions = Positions.getPositions(semanticConceptNid);
 
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
-
 		List<RestMappingSetDisplayField> displayFields = MappingAPIs.getMappingSetDisplayFieldsFromMappingSet(semanticConceptNid,
 				RequestInfo.get().getStampCoordinate());
 
 		Set<Integer> allowedAssemblages = new HashSet<>();
 		allowedAssemblages.add(semanticConceptNid);
-		SemanticVersions semantics = SemanticAPIs.get(null, allowedAssemblages, pageNum, maxPageSize, false, processIdUUID);
+		SemanticVersions semantics = SemanticAPIs.get(null, allowedAssemblages, pageNum, maxPageSize, false, false, null);
 
 		for (SemanticVersion semanticVersion : semantics.getValues())
 		{
 			items.add(new RestMappingItemVersion(((DynamicVersion<?>) semanticVersion), positions.targetPos, positions.qualfierPos,
-					RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), RequestInfo.get().shouldExpand(ExpandUtil.comments), processIdUUID,
+					RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), RequestInfo.get().shouldExpand(ExpandUtil.comments),
 					displayFields));
 		}
 		RestMappingItemVersionPage results = new RestMappingItemVersionPage(pageNum, maxPageSize, semantics.getTotal(), true,
@@ -323,10 +308,6 @@ public class MappingAPIs
 	 * @param expand - A comma separated list of fields to expand. Supports 'referencedDetails,comments'. When referencedDetails is passed,
 	 *            descriptions will be included for all referenced concepts which align with your current coordinates. When comments is passed, all
 	 *            comments attached to each mapItem are included.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -340,20 +321,20 @@ public class MappingAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.mappingItemComponent + "{" + RequestParameters.id + "}")
 	public RestMappingItemVersion getMappingItem(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.referencedDetails, ExpandUtil.comments);
 
 		int nid = RequestInfoUtils.getSemanticNidFromParameter(RequestParameters.id, id);
 
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 		SemanticChronology semantic = Get.assemblageService().getSemanticChronology(nid);
 
 		Positions positions = Positions.getPositions(semantic.getAssemblageNid());
 
-		LatestVersion<DynamicVersion<?>> latest = semantic.getLatestVersion(Util.getPreWorkflowStampCoordinate(processIdUUID, semantic.getNid()));
+		LatestVersion<DynamicVersion<?>> latest = semantic.getLatestVersion(RequestInfo.get().getStampCoordinate());
 		Util.logContradictions(log, latest);
 
 		List<RestMappingSetDisplayField> displayFields = MappingAPIs.getMappingSetDisplayFieldsFromMappingSet(semantic.getAssemblageNid(),
@@ -363,7 +344,7 @@ public class MappingAPIs
 		{
 			// TODO handle contradictions
 			return new RestMappingItemVersion(latest.get(), positions.targetPos, positions.qualfierPos,
-					RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), RequestInfo.get().shouldExpand(ExpandUtil.comments), processIdUUID,
+					RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), RequestInfo.get().shouldExpand(ExpandUtil.comments),
 					displayFields);
 		}
 		else

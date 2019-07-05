@@ -33,7 +33,6 @@ package net.sagebits.tmp.isaac.rest.api1.data.mapping;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.logging.log4j.LogManager;
@@ -150,7 +149,7 @@ public class RestMappingItemVersion extends RestMappingItemVersionBase
 	}
 
 	public RestMappingItemVersion(DynamicVersion<?> semantic, int targetColPosition, int equivalenceTypeColPosition, boolean expandDescriptions,
-			boolean expandComments, UUID processId, List<RestMappingSetDisplayField> displayFieldsFromMapSet)
+			boolean expandComments, List<RestMappingSetDisplayField> displayFieldsFromMapSet)
 	{
 		final StampCoordinate stampCoordinate = RequestInfo.get().getStampCoordinate();
 		identifiers = new RestIdentifiedObject(semantic.getChronology());
@@ -222,7 +221,7 @@ public class RestMappingItemVersion extends RestMappingItemVersionBase
 		{
 			try
 			{
-				comments = CommentAPIs.readComments(semantic.getNid() + "", processId, stampCoordinate);
+				comments = CommentAPIs.readComments(semantic.getNid() + "", stampCoordinate);
 			}
 			catch (RestException e)
 			{

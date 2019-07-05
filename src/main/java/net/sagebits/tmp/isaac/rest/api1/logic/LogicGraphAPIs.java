@@ -19,7 +19,6 @@
 package net.sagebits.tmp.isaac.rest.api1.logic;
 
 import java.util.Optional;
-import java.util.UUID;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
@@ -81,11 +80,6 @@ public class LogicGraphAPIs
 	 *          is part of on any stamp is returned. This is determined by whether or not there is version of this concept present with a module that extends from 
 	 *          one of the children of the {@link MetaData#MODULE____SOLOR} concepts. This is returned as a set, as a concept may exist in multiple terminologies 
 	 *          at the same time.
-	 *     
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -98,27 +92,24 @@ public class LogicGraphAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.versionComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticLogicGraphVersion getLogicGraphVersion(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.chronologyExpandable, ExpandUtil.versionExpandable, ExpandUtil.countParents, ExpandUtil.includeParents, 
+				ExpandUtil.terminologyType);
 
-		// TODO bug - the methods below findLogicGraphChronology are relying on some default logic graph coordiantes... Also seems to be a lot
-		// of optional to not optional to optional stuff going on below this call... look at cleaning up.
-		// See impl in RestConceptVersion constructor
 		SemanticChronology logicGraphSemanticChronology = findLogicGraphChronology(id, RequestInfo.get().getStated(), RequestInfo.get().getStampCoordinate(),
 				RequestInfo.get().getLanguageCoordinate(), RequestInfo.get().getLogicCoordinate());
 
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
-
-		LatestVersion<LogicGraphVersion> lgs = logicGraphSemanticChronology
-				.getLatestVersion(Util.getPreWorkflowStampCoordinate(processIdUUID, logicGraphSemanticChronology.getNid()));
+		LatestVersion<LogicGraphVersion> lgs = logicGraphSemanticChronology.getLatestVersion(RequestInfo.get().getStampCoordinate());
 		if (lgs.isPresent())
 		{
 			// TODO handle contradictions
 			Util.logContradictions(log, lgs);
-			return new RestSemanticLogicGraphVersion(lgs.get(), RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable), processIdUUID);
+			return new RestSemanticLogicGraphVersion(lgs.get(), RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable), false, true);
 		}
 		throw new RestException(RequestParameters.id, id, "No concept was found");
 	}
@@ -127,12 +118,23 @@ public class LogicGraphAPIs
 	 * Returns the chronology of a logic graph.
 	 * 
 	 * @param id - A UUID or nid, of a concept identifying the concept at the root of the logic graph
-	 * @param expand - comma separated list of fields to expand. Supports 'versionsAll', 'versionsLatestOnly', 'logicNodeUuids' and/or 'version'
-	 *            If latest only is specified in combination with versionsAll, it is ignored (all versions are returned)
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
+	 * @param expand - comma separated list of fields to expand. Supports 
+	 *     <br> 'versionsAll' - when supplied, all versions of the logic graph will be returned attached to the chronology.  Note that, this only includes 
+	 *         all versions for the top level logic graph chronology.  If 'version' is also specified, the version of the referenced component returned for 
+	 *         each version of the logic graph will be the most appropriate version for the top level logic graph.  In other words, the STAMP of the logic graph 
+	 *         version being returned is used to calculate the appropriate stamp for the referenced component versions, when they are looked up.
+	 *         Sorted newest to oldest.
+	 *     <br> 'versionsLatestOnly' - ignored if specified in combination with versionsAll
+	 *     <br> 'version'  - to include RestConceptVersion objects for referenced concepts, such as RestConceptNode and RestTypedConnectorNode types in the graph.
+	 *       Only applicable when versionsAll or versionsLatestOnly is also specified.
+	 *     <br> 'countParents' - may only be specified in combination with 'version' - will cause the expanded version to also have the parent count populated.
+	 *         Only applicable when versionsAll or versionsLatestOnly is also specified.
+	 *     <br> 'includeParents' - may only be specified in combination with 'version' - will cause the expanded version to also have the first-level parent list 
+	 *          populated.  Only applicable when versionsAll or versionsLatestOnly is also specified.
+	 *     <br> 'terminologyType' - may only be specified in combination with 'version'.   when specified, the concept nids of the terminologies that this concept 
+	 *          is part of on any stamp is returned. This is determined by whether or not there is version of this concept present with a module that extends from 
+	 *          one of the children of the {@link MetaData#MODULE____SOLOR} concepts. This is returned as a set, as a concept may exist in multiple terminologies 
+	 *          at the same time.  Only applicable when versionsAll or versionsLatestOnly is also specified.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -146,11 +148,13 @@ public class LogicGraphAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.chronologyComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticChronology getLogicGraphChronology(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.versionsAllExpandable, ExpandUtil.versionsLatestOnlyExpandable, ExpandUtil.versionExpandable, 
+				ExpandUtil.countParents, ExpandUtil.includeParents, ExpandUtil.terminologyType);
 
 		SemanticChronology logicGraphSemanticChronology = findLogicGraphChronology(id, RequestInfo.get().getStated(), RequestInfo.get().getStampCoordinate(),
 				RequestInfo.get().getLanguageCoordinate(), RequestInfo.get().getLogicCoordinate());
@@ -158,7 +162,7 @@ public class LogicGraphAPIs
 		return new RestSemanticChronology(logicGraphSemanticChronology, RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
 				RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), false,
 				// LogicGraphVersion should not support nestedSemanticsExpandable
-				false, Util.validateWorkflowProcess(processId));
+				false);
 	}
 
 	/**

@@ -71,10 +71,12 @@ import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.api.AssemblageService;
 import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
+import sh.isaac.api.chronicle.Version;
 import sh.isaac.api.chronicle.VersionType;
 import sh.isaac.api.collections.NidSet;
 import sh.isaac.api.component.semantic.SemanticChronology;
 import sh.isaac.api.component.semantic.version.SemanticVersion;
+import sh.isaac.api.coordinate.StampCoordinate;
 import sh.isaac.api.util.NumericUtils;
 import sh.isaac.api.util.UUIDUtil;
 import sh.isaac.misc.associations.AssociationUtilities;
@@ -161,16 +163,15 @@ public class SemanticAPIs
 	 * Returns the chronology of a semantic.
 	 * 
 	 * @param id - A UUID or nid of a semantic
-	 * @param expand - A comma separated list of fields to expand. Supports 'versionsAll', 'versionsLatestOnly', 'nestedSemantics',
-	 *            'referencedDetails'
-	 *            If latest only is specified in combination with versionsAll, it is ignored (all versions are returned)
-	 *            'referencedDetails' causes it to include the type for the referencedComponent, and, if it is a concept or a description semantic,
-	 *            the description of that
-	 *            concept - or the description value.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
+	 * @param expand - A comma separated list of fields to expand. Supports 
+	 *       <br> - 'versionsAll' - returns all versions of the semantic.  Note that, this only includes all versions for the top level semantic chronology.
+	 *         For nested semantics or referencedDetails, the most appropriate version is returned, relative to the version of the semantic being returned.  
+	 *         In other words, the STAMP of the semantic version being returned is used to calculate the appropriate stamp for the referenced component 
+	 *         versions, when they are looked up.  Sorted newest to oldest,
+	 *       <br> - 'versionsLatestOnly' - If latest only is specified in combination with versionsAll, it is ignored (all versions are returned)
+	 *       <br> - 'nestedSemantics' - include any other nested semantics on this semantic.
+	 *       <br> - 'referencedDetails' - causes it to include the type for the referencedComponent, and, if it is a concept or a description semantic,
+	 *            the description of that concept - or the description value.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained
 	 *            by a separate (prior) call to getCoordinatesToken().
@@ -185,16 +186,16 @@ public class SemanticAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.chronologyComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticChronology getSemanticChronology(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.versionsAllExpandable, ExpandUtil.versionsLatestOnlyExpandable, ExpandUtil.nestedSemanticsExpandable);
 
 		RestSemanticChronology chronology = new RestSemanticChronology(findSemanticChronology(id),
 				RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable), RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable),
-				RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails),
-				Util.validateWorkflowProcess(processId));
+				RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails));
 
 		return chronology;
 	}
@@ -207,41 +208,35 @@ public class SemanticAPIs
 	 * @param expand - comma separated list of fields to expand. Supports 'chronology', 'nestedSemantics', 'referencedDetails'
 	 *            When referencedDetails is passed, nids will include type information, and certain nids will also include their descriptions,
 	 *            if they represent a concept or a description semantic.
-	 * @return the semantic version object. Note that the returned type here - RestSemanticVersion is actually an abstract base class,
-	 *         the actual return type will be either a RestDynamicSemanticVersion or a RestSemanticDescriptionVersion.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
 	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
 	 *     performance. 
-	 * 
+	 * @return the semantic version object. Note that the returned type here - RestSemanticVersion is actually an abstract base class,
+	 *         the actual return type will be either a RestDynamicSemanticVersion or a RestSemanticDescriptionVersion.
 	 * @throws RestException
 	 */
 	@GET
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.versionComponent + "{" + RequestParameters.id + "}")
 	public RestSemanticVersion getSemanticVersion(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
-
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.chronologyExpandable, ExpandUtil.nestedSemanticsExpandable, ExpandUtil.referencedDetails);
 
 		SemanticChronology sc = findSemanticChronology(id);
-		LatestVersion<SemanticVersion> sv = sc.getLatestVersion(Util.getPreWorkflowStampCoordinate(processIdUUID, sc.getNid()));
+		LatestVersion<SemanticVersion> sv = sc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 		Util.logContradictions(log, sv);
 		if (sv.isPresent())
 		{
 			// TODO handle contradictions
 			return RestSemanticVersion.buildRestSemanticVersion(sv.get(), RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable),
 					RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails),
-					processIdUUID);
+					true);
 		}
 		else
 		{
@@ -289,17 +284,15 @@ public class SemanticAPIs
 	/**
 	 * Returns all semantic instances with the given assemblage
 	 * If no version parameter is specified, returns the latest version.
+	 * If includeAllVersions is specified, returns all versions of each semantic.
 	 * 
 	 * @param id - A UUID or nid of an assemblage concept
 	 * @param pageNum The pagination page number >= 1 to return
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
-	 * @param expand - comma separated list of fields to expand. Supports 'chronology', 'nested', 'referencedDetails'
+	 * @param expand - comma separated list of fields to expand. Supports 'chronology', 'nestedSemantics', 'referencedDetails'
 	 *            When referencedDetails is passed, nids will include type information, and certain nids will also include their descriptions,
 	 *            if they represent a concept or a description semantic.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
+	 * @param includeAllVersions - when true, will return all existing versions of the semantic instances, ignoring the coordinates.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken
 	 *            may be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -316,27 +309,28 @@ public class SemanticAPIs
 	public RestSemanticVersionPage getForAssemblage(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
-			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.processId) String processId,
+			@QueryParam(RequestParameters.expand) String expand, 
+			@QueryParam(RequestParameters.includeAllVersions) @DefaultValue("false") String includeAllVersions,
 			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.includeAllVersions, RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.chronologyExpandable, ExpandUtil.nestedSemanticsExpandable, ExpandUtil.referencedDetails);
 
 		HashSet<Integer> singleAllowedAssemblage = new HashSet<>();
 		singleAllowedAssemblage.add(RequestInfoUtils.getConceptNidFromParameter(RequestParameters.id, id));
 
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
-
 		// we don't have a referenced component - our id is assemblage
-		SemanticVersions versions = get(null, singleAllowedAssemblage, pageNum, maxPageSize, true, processIdUUID);
+		SemanticVersions versions = get(null, singleAllowedAssemblage, pageNum, maxPageSize, true, Boolean.parseBoolean(includeAllVersions.trim()), null);
 
 		List<RestSemanticVersion> restSemanticVersions = new ArrayList<>();
 		for (SemanticVersion sv : versions.getValues())
 		{
 			restSemanticVersions.add(RestSemanticVersion.buildRestSemanticVersion(sv, RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable),
 					RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable), RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails),
-					processIdUUID));
+					false));
 		}
 		RestSemanticVersionPage results = new RestSemanticVersionPage(pageNum, maxPageSize, versions.getTotal(), true,
 				versions.getTotal() > (pageNum * maxPageSize), RestPaths.semanticByAssemblageAppPathComponent + id,
@@ -355,17 +349,13 @@ public class SemanticAPIs
 	 * @param includeDescriptions - an optional flag to request that description type semantics are returned. By default, description type
 	 *            semantics are not returned, as these are typically retrieved via a getDescriptions call on the Concept APIs.
 	 * @param includeAssociations - an optional flag to request that semantics that represent associations are returned. By default, semantics that
-	 *            represent
-	 *            associations are not returned, as these are typically retrieved via a getSourceAssociations call on the Association APIs.
+	 *            represent associations are not returned, as these are typically retrieved via a getSourceAssociations call on the Association APIs.
 	 * @param includeMappings - an optional flag to request that semantics that represent mappings are returned. By default, semantics that represent
 	 *            mappings are not returned, as these are typically retrieved via a the Mapping APIs.
+	 * @param includeAllVersions - when true, will return all existing versions of the semantic instances, ignoring the coordinates.
 	 * @param expand - comma separated list of fields to expand. Supports 'chronology', 'nestedSemantics', 'referencedDetails'
 	 *            When referencedDetails is passed, nids will include type information, and certain nids will also include their descriptions,
 	 *            if they represent a concept or a description semantic.
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may be
 	 *            obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -383,13 +373,17 @@ public class SemanticAPIs
 			@QueryParam(RequestParameters.assemblage) Set<String> assemblage,
 			@QueryParam(RequestParameters.includeDescriptions) @DefaultValue("false") String includeDescriptions,
 			@QueryParam(RequestParameters.includeAssociations) @DefaultValue("false") String includeAssociations,
-			@QueryParam(RequestParameters.includeMappings) @DefaultValue("false") String includeMappings, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
+			@QueryParam(RequestParameters.includeMappings) @DefaultValue("false") String includeMappings,
+			@QueryParam(RequestParameters.includeAllVersions) @DefaultValue("false") String includeAllVersions,
+			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.coordToken) String coordToken,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.assemblage,
-				RequestParameters.includeDescriptions, RequestParameters.includeAssociations, RequestParameters.includeMappings, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.includeDescriptions, RequestParameters.includeAssociations, RequestParameters.includeMappings, RequestParameters.includeAllVersions,
+				RequestParameters.expand, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.chronologyExpandable, ExpandUtil.nestedSemanticsExpandable, ExpandUtil.referencedDetails);
 
 		HashSet<Integer> allowedAssemblages = new HashSet<>();
 		for (String a : assemblage)
@@ -399,8 +393,10 @@ public class SemanticAPIs
 
 		return get(id, allowedAssemblages, null,  // TODO add API support for the new skip assemblage feature
 				RequestInfo.get().shouldExpand(ExpandUtil.chronologyExpandable), RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable),
-				RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), Boolean.parseBoolean(includeDescriptions.trim()),
-				Boolean.parseBoolean(includeAssociations.trim()), Boolean.parseBoolean(includeMappings.trim()), Util.validateWorkflowProcess(processId));
+				RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), 
+				Boolean.parseBoolean(includeAllVersions.trim()),
+				Boolean.parseBoolean(includeDescriptions.trim()),
+				Boolean.parseBoolean(includeAssociations.trim()), Boolean.parseBoolean(includeMappings.trim()));
 	}
 
 	/**
@@ -507,15 +503,14 @@ public class SemanticAPIs
 	 * @param pageNum 
 	 * @param maxPageSize 
 	 * @param allowDescriptions true to include description type semantics, false to skip
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
+	 * @param includeAllVersions - true for all versions, ignoring stamp, false for latest only on given stamp
+	 * @param stamp - optional - when includeAllVersions is false, use this stamp for populating the version to return.  If not provided, 
+	 *     the stamp is read from the RequestInfo.  
 	 * @return the semantic versions wrapped for paging
 	 * @throws RestException
 	 */
 	public static SemanticVersions get(String referencedComponent, Set<Integer> allowedAssemblages, final int pageNum, final int maxPageSize,
-			boolean allowDescriptions, UUID processId) throws RestException
+			boolean allowDescriptions, boolean includeAllVersions, StampCoordinate stamp) throws RestException
 	{
 		PaginationUtils.validateParameters(pageNum, maxPageSize);
 
@@ -525,6 +520,17 @@ public class SemanticAPIs
 		if (!allowDescriptions)
 		{
 			excludedVersionTypes.add(VersionType.DESCRIPTION);
+		}
+		
+		if (includeAllVersions && maxPageSize < Integer.MAX_VALUE)
+		{
+			throw new RestException("Paging not currently supported in combination with includeAllVersions");
+		}
+		
+		StampCoordinate stampToUse = null;
+		if (!includeAllVersions)
+		{
+			stampToUse = stamp == null ? RequestInfo.get().getStampCoordinate() : stamp;
 		}
 
 		final List<SemanticVersion> ochreResults = new ArrayList<>();
@@ -565,12 +571,22 @@ public class SemanticAPIs
 					else
 					{
 						SemanticChronology chronology = it.next();
-						LatestVersion<SemanticVersion> sv = chronology.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, chronology.getNid()));
-						Util.logContradictions(log, sv);
-						if (sv.isPresent())
+						if (includeAllVersions)
 						{
-							// TODO handle contradictions
-							ochreResults.add(sv.get());
+							for (Version v : chronology.getVersionList())
+							{
+								ochreResults.add((SemanticVersion)v);
+							}
+						}
+						else
+						{
+							LatestVersion<SemanticVersion> sv = chronology.getLatestVersion(stampToUse);
+							Util.logContradictions(log, sv);
+							if (sv.isPresent())
+							{
+								// TODO handle contradictions
+								ochreResults.add(sv.get());
+							}
 						}
 					}
 
@@ -607,12 +623,21 @@ public class SemanticAPIs
 				else
 				{
 					SemanticChronology chronology = Get.assemblageService().getSemanticChronology(it.nextInt());
-					LatestVersion<SemanticVersion> sv = ((SemanticChronology) chronology)
-							.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, chronology.getNid()));
-					Util.logContradictions(log, sv);
-					if (sv.isPresent())
+					if (includeAllVersions)
 					{
-						ochreResults.add(sv.get());
+						for (Version v : chronology.getVersionList())
+						{
+							ochreResults.add((SemanticVersion)v);
+						}
+					}
+					else
+					{
+						LatestVersion<SemanticVersion> sv = ((SemanticChronology) chronology).getLatestVersion(stampToUse);
+						Util.logContradictions(log, sv);
+						if (sv.isPresent())
+						{
+							ochreResults.add(sv.get());
+						}
 					}
 				}
 			}
@@ -630,19 +655,17 @@ public class SemanticAPIs
 	 * @param expandChronology
 	 * @param expandNested
 	 * @param expandReferenced
+	 * @param includeAllVersions - false, to return the latest version (for the specified stamp), true to include all versions of each semantic, 
+	 *     ignoring the stamp.
 	 * @param allowDescriptions true to include description type semantics, false to skip
 	 * @param allowAssociations true to include semantics that represent associations, false to skip
 	 * @param allowMappings true to include semantics that represent mappings, false to skip
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @return the semantics
 	 * @throws RestException
 	 */
 	public static RestSemanticVersion[] get(String referencedComponent, Set<Integer> allowedAssemblages, Set<Integer> skipAssemblages, boolean expandChronology,
-			boolean expandNested, boolean expandReferenced, boolean allowDescriptions, boolean allowAssociations, boolean allowMappings, UUID processId)
-			throws RestException
+			boolean expandNested, boolean expandReferenced, boolean includeAllVersions, boolean allowDescriptions, boolean allowAssociations, boolean allowMappings)
+					throws RestException
 	{
 		final ArrayList<RestSemanticVersion> results = new ArrayList<>();
 		Consumer<SemanticChronology> consumer = new Consumer<SemanticChronology>()
@@ -664,18 +687,36 @@ public class SemanticAPIs
 					{
 						return;
 					}
-					LatestVersion<SemanticVersion> sv = sc.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, sc.getNid()));
-					Util.logContradictions(log, sv);
-					if (sv.isPresent())
+					if (includeAllVersions)
 					{
-						try
+						for (Version sv : sc.getVersionList())
 						{
-							// TODO handle contradictions
-							results.add(RestSemanticVersion.buildRestSemanticVersion(sv.get(), expandChronology, expandNested, expandReferenced, processId));
+							try
+							{
+								results.add(RestSemanticVersion.buildRestSemanticVersion((SemanticVersion)sv, expandChronology, expandNested, expandReferenced, 
+										false));
+							}
+							catch (RestException e)
+							{
+								throw new RuntimeException("Unexpected error", e);
+							}
 						}
-						catch (RestException e)
+					}
+					else
+					{
+						LatestVersion<SemanticVersion> sv = sc.getLatestVersion(RequestInfo.get().getStampCoordinate());
+						Util.logContradictions(log, sv);
+						if (sv.isPresent())
 						{
-							throw new RuntimeException("Unexpected error", e);
+							try
+							{
+								// TODO handle contradictions
+								results.add(RestSemanticVersion.buildRestSemanticVersion(sv.get(), expandChronology, expandNested, expandReferenced, true));
+							}
+							catch (RestException e)
+							{
+								throw new RuntimeException("Unexpected error", e);
+							}
 						}
 					}
 				}

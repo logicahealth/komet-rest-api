@@ -161,10 +161,9 @@ public class RestMappingSetVersion extends RestMappingSetVersionBase implements 
 	 * @param semantic
 	 * @param stampCoord
 	 * @param includeComments 
-	 * @param processId 
 	 */
 	@SuppressWarnings("rawtypes")
-	public RestMappingSetVersion(ConceptVersion mappingConcept, DynamicVersion<?> semantic, StampCoordinate stampCoord, boolean includeComments, UUID processId)
+	public RestMappingSetVersion(ConceptVersion mappingConcept, DynamicVersion<?> semantic, StampCoordinate stampCoord, boolean includeComments)
 	{
 		super();
 
@@ -339,7 +338,7 @@ public class RestMappingSetVersion extends RestMappingSetVersionBase implements 
 		{
 			try
 			{
-				comments = CommentAPIs.readComments(mappingConcept.getNid() + "", processId, myStampCoord);
+				comments = CommentAPIs.readComments(mappingConcept.getNid() + "", myStampCoord);
 			}
 			catch (RestException e)
 			{

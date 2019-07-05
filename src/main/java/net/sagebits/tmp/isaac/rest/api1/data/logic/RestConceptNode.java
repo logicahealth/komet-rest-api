@@ -40,6 +40,7 @@ import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.model.logic.node.external.ConceptNodeWithUuids;
 import sh.isaac.model.logic.node.internal.ConceptNodeWithNids;
@@ -60,7 +61,7 @@ public class RestConceptNode extends RestLogicNode
 	 * The int nid of the concept referred to by this REST logic graph node
 	 */
 	@XmlElement
-	RestIdentifiedObject concept;
+	public RestIdentifiedObject concept;
 
 	/**
 	 * Optionally-expandable RestConceptVersion corresponding to RestConceptNode concept.  Include by 
@@ -72,14 +73,14 @@ public class RestConceptNode extends RestLogicNode
 	 * the primitive vs defined information.
 	 */
 	@XmlElement
-	RestConceptVersion conceptVersion;
+	public RestConceptVersion conceptVersion;
 
 	/**
 	 * The String text description of the concept referred to by this REST logic graph node. It is included as a convenience, as it may be retrieved
 	 * based on the concept nid
 	 */
 	@XmlElement
-	String conceptDescription;
+	public String conceptDescription;
 
 	protected RestConceptNode()
 	{
@@ -88,36 +89,37 @@ public class RestConceptNode extends RestLogicNode
 
 	/**
 	 * @param conceptNodeWithUuids
+	 * @param coordForRead 
 	 */
-	public RestConceptNode(ConceptNodeWithUuids conceptNodeWithUuids)
+	public RestConceptNode(ConceptNodeWithUuids conceptNodeWithUuids, ManifoldCoordinate coordForRead)
 	{
 		super(conceptNodeWithUuids);
-		finishSetup(Get.identifierService().getNidForUuids(conceptNodeWithUuids.getConceptUuid()));
+		finishSetup(Get.identifierService().getNidForUuids(conceptNodeWithUuids.getConceptUuid()), coordForRead);
 	}
 	
 	/**
 	 * @param conceptNodeWithNids
+	 * @param coordForRead 
 	 */
-	public RestConceptNode(ConceptNodeWithNids conceptNodeWithNids)
+	public RestConceptNode(ConceptNodeWithNids conceptNodeWithNids, ManifoldCoordinate coordForRead)
 	{
 		super(conceptNodeWithNids);
-		finishSetup(conceptNodeWithNids.getConceptNid());
+		finishSetup(conceptNodeWithNids.getConceptNid(), coordForRead);
 	}
 
-	private void finishSetup(int conceptNid)
+	private void finishSetup(int conceptNid, ManifoldCoordinate coordForRead)
 	{
 		this.concept = new RestIdentifiedObject(conceptNid, IsaacObjectType.CONCEPT);
-		conceptDescription = Get.conceptService().getSnapshot(RequestInfo.get().getManifoldCoordinate()).conceptDescriptionText(conceptNid);
+		conceptDescription = Get.conceptService().getSnapshot(coordForRead).conceptDescriptionText(conceptNid);
 
 		if (RequestInfo.get().shouldExpand(ExpandUtil.versionExpandable))
 		{
 			ConceptChronology cc = Get.conceptService().getConceptChronology(conceptNid);
-			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(RequestInfo.get().getStampCoordinate());
+			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(coordForRead.getStampCoordinate());
 			// TODO handle contradictions
-			// TODO handle processId?
 			conceptVersion = new RestConceptVersion(olcv.get(), true, RequestInfo.get().shouldExpand(ExpandUtil.includeParents), 
 					RequestInfo.get().shouldExpand(ExpandUtil.countParents),
-					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), null);
+					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), false);
 		}
 		else
 		{

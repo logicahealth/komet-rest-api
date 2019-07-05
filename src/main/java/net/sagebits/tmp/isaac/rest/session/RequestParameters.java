@@ -150,6 +150,7 @@ public class RequestParameters {
 	public final static String includeMappings = "includeMappings";
 	public final static String includeAttributes = "includeAttributes";
 	public final static String includeAttributesDefault = "true";
+	public final static String includeAllVersions = "includeAllVersions";
 
 	public final static String query = "query";
 	public final static String treatAsString = "treatAsString";
@@ -167,6 +168,7 @@ public class RequestParameters {
 	public final static String countChildren = "countChildren";
 	public final static String semanticMembership = "semanticMembership";
 	public final static String terminologyType = "terminologyType";
+	public final static String sortFull = "sortFull";
 	
 	// Concept
 	public final static String includeParents = "includeParents";
@@ -179,13 +181,13 @@ public class RequestParameters {
 	public final static String altId = "altId";
 
 	// Workflow
-	public final static String definitionId = "definitionId"; // UUID string
-	public final static String processId = "processId"; // UUID string
-	public final static String acquireLock = "acquireLock"; // string, "true" or "false"
-	public final static String status = "status"; //String, workflow status
-	public final static String includeActive = "includeActive";
-	public final static String includeCompleted = "includeCompleted";
-	public final static String includeCanceled = "includeCanceled";
+//	public final static String definitionId = "definitionId"; // UUID string
+//	public final static String processId = "processId"; // UUID string
+//	public final static String acquireLock = "acquireLock"; // string, "true" or "false"
+//	public final static String status = "status"; //String, workflow status
+//	public final static String includeActive = "includeActive";
+//	public final static String includeCompleted = "includeCompleted";
+//	public final static String includeCanceled = "includeCanceled";
 	
 	// Edit Token
 	public final static String editToken = "editToken";
@@ -229,6 +231,11 @@ public class RequestParameters {
 	public final static String largeResults = "largeResults";
 	
 	
+	//IBDF import
+	public final static String artifactId = "artifactId";
+	public final static String groupId = "groupId";
+	public final static String version = "version";
+	
 	/**
 	 * Set of all known parameters usable to detect malformed or incorrect parameters
 	 */
@@ -248,6 +255,7 @@ public class RequestParameters {
 			assemblage,
 			includeDescriptions,
 			includeAttributes,
+			includeAllVersions,
 
 			query,
 			treatAsString,
@@ -263,6 +271,7 @@ public class RequestParameters {
 
 			countChildren,
 			semanticMembership,
+			sortFull,
 			
 			// Concept
 			includeParents,
@@ -276,13 +285,13 @@ public class RequestParameters {
 			active,
 			
 			//workflow
-			definitionId,
-			processId,
-			acquireLock,
-			status,
-			includeActive,
-			includeCompleted,
-			includeCanceled,
+//			definitionId,
+//			processId,
+//			acquireLock,
+//			status,
+//			includeActive,
+//			includeCompleted,
+//			includeCanceled,
 			
 			field,
 			
@@ -294,7 +303,11 @@ public class RequestParameters {
 			fqn,
 			defaultModule,
 			largeResults,
-			parentConceptId
+			parentConceptId, 
+			
+			groupId, 
+			artifactId, 
+			version
 			
 			));
 		ALL_VALID_PARAMETERS = params;

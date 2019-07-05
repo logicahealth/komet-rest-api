@@ -31,6 +31,7 @@
 package net.sagebits.tmp.isaac.rest.api1.data.logic;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.model.logic.node.external.RoleNodeAllWithUuids;
 import sh.isaac.model.logic.node.external.RoleNodeSomeWithUuids;
 import sh.isaac.model.logic.node.internal.RoleNodeAllWithNids;
@@ -59,33 +60,37 @@ public class RestRoleNode extends RestTypedConnectorNode
 
 	/**
 	 * @param roleNodeSomeWithNids
+	 * @param coordForRead 
 	 */
-	public RestRoleNode(RoleNodeSomeWithNids roleNodeSomeWithNids)
+	public RestRoleNode(RoleNodeSomeWithNids roleNodeSomeWithNids, ManifoldCoordinate coordForRead)
 	{
-		super(roleNodeSomeWithNids);
+		super(roleNodeSomeWithNids, coordForRead);
 	}
 
 	/**
 	 * @param roleNodeSomeWithUuids
+	 * @param coordForRead 
 	 */
-	public RestRoleNode(RoleNodeSomeWithUuids roleNodeSomeWithUuids)
+	public RestRoleNode(RoleNodeSomeWithUuids roleNodeSomeWithUuids, ManifoldCoordinate coordForRead)
 	{
-		super(roleNodeSomeWithUuids);
+		super(roleNodeSomeWithUuids, coordForRead);
 	}
 
 	/**
 	 * @param roleNodeAllWithNids
+	 * @param coordForRead 
 	 */
-	public RestRoleNode(RoleNodeAllWithNids roleNodeAllWithNids)
+	public RestRoleNode(RoleNodeAllWithNids roleNodeAllWithNids, ManifoldCoordinate coordForRead)
 	{
-		super(roleNodeAllWithNids);
+		super(roleNodeAllWithNids, coordForRead);
 	}
 
 	/**
 	 * @param roleNodeAllWithUuids
+	 * @param coordForRead 
 	 */
-	public RestRoleNode(RoleNodeAllWithUuids roleNodeAllWithUuids)
+	public RestRoleNode(RoleNodeAllWithUuids roleNodeAllWithUuids, ManifoldCoordinate coordForRead)
 	{
-		super(roleNodeAllWithUuids);
+		super(roleNodeAllWithUuids, coordForRead);
 	}
 }

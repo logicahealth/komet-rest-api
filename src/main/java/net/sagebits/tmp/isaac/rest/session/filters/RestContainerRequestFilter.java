@@ -144,7 +144,7 @@ public class RestContainerRequestFilter implements ContainerRequestFilter
 
 		try
 		{
-			RequestInfo.get().readAll(queryParams, requestContext);
+			RequestInfo.get().readAll(queryParams, requestContext.getUriInfo().getPath(true));
 
 			// If they are asking for an edit token, or attempting to do a write, we need a valid editToken.
 			if (requestContext.getUriInfo().getPath().contains(RestPaths.writePathComponent)
@@ -169,10 +169,15 @@ public class RestContainerRequestFilter implements ContainerRequestFilter
 						// If it is a write request, the edit token needs to be valid for write.
 						if (!et.isValidForWrite())
 						{
-							throw new IOException("Edit Token is no longer valid for write - please renew the token.");
+							throw new RestException("Edit Token is no longer valid for write - please renew the token.");
 						}
 					}
 					RequestInfo.get().getEditCoordinate();
+				}
+				else if (requestContext.getUriInfo().getPath().contains(RestPaths.writePathComponent))
+				{
+					//If this was a /write/ call, and theydidn't pass an edit token, we fail.
+					throw new RestException("Edit Token is required for /write/ operations.");
 				}
 			}
 

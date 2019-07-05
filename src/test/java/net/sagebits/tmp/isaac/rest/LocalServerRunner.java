@@ -41,13 +41,17 @@ import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.ext.Provider;
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
 import org.glassfish.jersey.jackson.JacksonFeature;
+import org.glassfish.jersey.jetty.JettyHttpContainerFactory;
 import org.glassfish.jersey.message.MessageProperties;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.filter.RolesAllowedDynamicFeature;
+import org.glassfish.jersey.servlet.ServletContainer;
 import eu.infomas.annotation.AnnotationDetector;
 import net.sagebits.HK2Utilities.AnnotatedClasses;
 import net.sagebits.HK2Utilities.AnnotationReporter;
@@ -55,14 +59,14 @@ import sh.isaac.api.constants.SystemPropertyConstants;
 
 /**
  * 
- * {@link LocalGrizzlyRunner}
+ * {@link LocalServerRunner}
  *
  * @author <a href="mailto:daniel.armbrust.list@sagebits.net">Dan Armbrust</a>
  */
-public class LocalGrizzlyRunner
+public class LocalServerRunner
 {
-	private static final URI BASE_URI = URI.create("http://0.0.0.0:8180/rest/");
-
+	private static final URI BASE_URI = URI.create("http://0.0.0.0:8180");
+	
 	public static ResourceConfig configureJerseyServer() throws IOException, ClassNotFoundException
 	{
 		// Find all classes with the specified annotations:
@@ -86,35 +90,41 @@ public class LocalGrizzlyRunner
 
 		return rc;
 	}
+	
 
 	public static void main(String[] args) throws Exception
 	{
-		System.out.println("Launching Grizzly Server");
-
+		System.out.println("Launching Jetty Server for FHIR and REST APIs");
+		
 		if (args != null && args.length >= 1 && args[0].startsWith("isaacDatabaseLocation="))
 		{
 			System.setProperty(SystemPropertyConstants.DATA_STORE_ROOT_LOCATION_PROPERTY, args[0].substring("isaacDatabaseLocation=".length()));
 		}
-
+		
+		HandlerCollection hc = new HandlerCollection();
+		
+		//Rest API
 		final ResourceConfig resourceConfig = configureJerseyServer();
-
 		Map<String, Object> properties = new HashMap<>();
 		properties.put(MessageProperties.XML_FORMAT_OUTPUT, true);
 		resourceConfig.addProperties(properties);
-		final HttpServer server = GrizzlyHttpServerFactory.createHttpServer(BASE_URI, resourceConfig, false);
-		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable()
-		{
-			@Override
-			public void run()
-			{
-				server.shutdownNow();
-			}
-		}));
+		
+		ServletContainer jersey = new ServletContainer(resourceConfig);
+		ServletContextHandler restContext = new ServletContextHandler();
+		restContext.setContextPath("/rest/");
+		restContext.addServlet(new ServletHolder(jersey), "/*");
+		
+		hc.addHandler(restContext);
+
+		final Server server = JettyHttpContainerFactory.createServer(BASE_URI, false);
+		server.setHandler(hc);
 		server.start();
 
 		System.out.println("ISAAC is starting in a background thread, it may be some time before it can serve requests");
-
+		Thread.sleep(3000);
 		System.out.println("You're using Eclipse; click in this console and " + "press ENTER to call System.exit() and run the shutdown routine.");
+		System.out.println("Try http://localhost:8180/fhir/r4/TerminologyCapabilities?_format=json");
+
 		try
 		{
 			System.in.read();
@@ -123,6 +133,8 @@ public class LocalGrizzlyRunner
 		{
 			e.printStackTrace();
 		}
+		server.stop();
+		System.out.println("Goodbye");
 		System.exit(0);
 	}
 }

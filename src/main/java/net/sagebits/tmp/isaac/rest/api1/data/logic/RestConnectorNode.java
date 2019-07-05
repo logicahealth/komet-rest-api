@@ -36,6 +36,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlSeeAlso;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.webcohesion.enunciate.metadata.json.JsonSeeAlso;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.logic.LogicNode;
 import sh.isaac.model.logic.node.AbstractLogicNode;
 
@@ -56,7 +57,7 @@ public class RestConnectorNode extends RestLogicNode
 	 * The list of child RestLogicNode instances contained within this RestConnectorNode.
 	 */
 	@XmlElement
-	List<RestLogicNode> children;
+	public List<RestLogicNode> children;
 
 	protected RestConnectorNode()
 	{
@@ -64,9 +65,10 @@ public class RestConnectorNode extends RestLogicNode
 	}
 
 	/**
-	 * @param typedNodeWithNids
+	 * @param passedLogicNode 
+	 * @param coordForRead 
 	 */
-	public RestConnectorNode(AbstractLogicNode passedLogicNode)
+	public RestConnectorNode(AbstractLogicNode passedLogicNode, ManifoldCoordinate coordForRead)
 	{
 		super(passedLogicNode);
 		AbstractLogicNode[] childrenOfPassedLogicNode = passedLogicNode.getChildren();
@@ -85,7 +87,7 @@ public class RestConnectorNode extends RestLogicNode
 			LogicNode childOfPassedLogicNode = childrenOfPassedLogicNode[i];
 			LOG.debug(getClassBaseName(this) + " " + this.nodeSemantic + " constructing child node from " + childOfPassedLogicNode + " with {} child nodes",
 					childOfPassedLogicNode.getChildren().length);
-			RestLogicNode newRestNode = RestLogicNodeFactory.create(childOfPassedLogicNode);
+			RestLogicNode newRestNode = RestLogicNodeFactory.create(childOfPassedLogicNode, coordForRead);
 			LOG.debug(getClassBaseName(this) + " " + this.nodeSemantic + " ctor inserting new " + getClassBaseName(newRestNode) + " " + newRestNode.nodeSemantic
 					+ " (index=" + childOfPassedLogicNode.getNodeIndex() + ") into child list at index " + i);
 			children.add(newRestNode);

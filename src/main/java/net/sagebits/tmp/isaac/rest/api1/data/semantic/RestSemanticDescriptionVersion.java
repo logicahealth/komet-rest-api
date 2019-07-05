@@ -109,17 +109,17 @@ public class RestSemanticDescriptionVersion extends RestSemanticVersion
 		// for Jaxb
 	}
 
-	public RestSemanticDescriptionVersion(DescriptionVersion dsv, boolean includeChronology, boolean expandNested, boolean expandReferenced, UUID processId)
-			throws RestException
+	public RestSemanticDescriptionVersion(DescriptionVersion dsv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStamp) throws RestException
 	{
 		super();
-		setup(dsv, includeChronology, expandNested, expandReferenced, (restSemanticVersion -> {
+		setup(dsv, includeChronology, expandNested, expandReferenced, useLatestStamp, ((restSemanticVersion, stampCoord) -> {
 			// If the assemblage is a dialect, put it in our list.
 			if (Get.taxonomyService().getSnapshotNoTree(new ManifoldCoordinateImpl(
 					new StampCoordinateImpl(StampPrecedence.TIME, 
-								new StampPositionImpl(Long.MAX_VALUE, RequestInfo.get().getStampCoordinate().getStampPosition().getStampPathSpecification().getNid()), 
-							NidSet.EMPTY, Status.ACTIVE_ONLY_SET), 
-						Get.configurationService().getGlobalDatastoreConfiguration().getDefaultLanguageCoordinate()))
+							new StampPositionImpl(Long.MAX_VALUE, stampCoord.getStampPosition().getStampPathSpecification().getNid()), 
+							null, Status.ACTIVE_ONLY_SET), 
+						Get.configurationService().getGlobalDatastoreConfiguration().getDefaultLanguageCoordinate()))  //language doesn't matter for our request
 					.isKindOf(restSemanticVersion.semanticChronology.assemblage.nid, MetaData.DIALECT_ASSEMBLAGE____SOLOR.getNid()))
 			{
 				dialects.add((RestDynamicSemanticVersion) restSemanticVersion);
@@ -131,7 +131,7 @@ public class RestSemanticDescriptionVersion extends RestSemanticVersion
 				return false;
 			}
 			return true;
-		}), processId);
+		}));
 		caseSignificanceConcept = new RestIdentifiedObject(dsv.getCaseSignificanceConceptNid(), IsaacObjectType.CONCEPT);
 		languageConcept = new RestIdentifiedObject(dsv.getLanguageConceptNid(), IsaacObjectType.CONCEPT);
 		text = dsv.getText();

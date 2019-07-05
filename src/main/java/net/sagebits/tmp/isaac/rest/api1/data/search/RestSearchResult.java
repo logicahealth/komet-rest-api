@@ -174,8 +174,8 @@ public class RestSearchResult
 						RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), 
 						RequestInfo.get().shouldExpand(ExpandUtil.includeParents),
 						RequestInfo.get().shouldExpand(ExpandUtil.countParents),
-						true, null, null, 
-						RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED); // TODO possibly handle processId
+						true, null, 
+						RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED);
 				if (RequestInfo.get().returnExpandableLinks())
 				{
 					if (!RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable))

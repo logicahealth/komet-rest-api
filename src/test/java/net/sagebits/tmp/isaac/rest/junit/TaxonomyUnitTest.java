@@ -37,7 +37,6 @@ import javax.ws.rs.core.Feature;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
-import org.glassfish.grizzly.http.util.Header;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.Assert;
 import org.testng.annotations.Optional;
@@ -72,7 +71,7 @@ public class TaxonomyUnitTest extends SSLWSRestClientHelper
 			{
 				Response response = wt.queryParam("childDepth", "" + randomGenerator.nextInt(5)).queryParam("countChildren", "true")
 						.queryParam("countChildren", "true").queryParam("expand", "chronology").queryParam("id", "" + randomGenerator.nextInt(50000))
-						.queryParam("parentHeight", "1").queryParam("stated", "true").request().header(Header.Accept.toString(), MediaType.APPLICATION_JSON)
+						.queryParam("parentHeight", "1").queryParam("stated", "true").request().header("ACCEPT", MediaType.APPLICATION_JSON)
 						.get();
 				checkFail(response).readEntity(String.class);
 			}

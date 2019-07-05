@@ -247,8 +247,6 @@ public class IdAPIs
 	 * 
 	 * This returns a subset of idTypes contained in the /types call - only the ones that are stored via a semantic.
 	 * 
-	 * @param expand - concept-specific expandable parameters
-	 * 
 	 * @return RestConceptChronology[] - Array of {@link RestConceptChronology} representing identifier static string semantic concepts
 	 * @throws RestException
 	 */
@@ -257,9 +255,8 @@ public class IdAPIs
 	@Path(RestPaths.idsComponent)
 	public RestConceptChronology[] getSupportedIdConcepts() throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
-				RequestParameters.COORDINATE_PARAM_NAMES);
-
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.COORDINATE_PARAM_NAMES);
+		
 		Set<ConceptChronology> identifierAnnotatedConcepts = new HashSet<>();
 
 		Stream<SemanticChronology> identifierAnnotationSemanticChronologyStream = Get.assemblageService()
@@ -285,7 +282,7 @@ public class IdAPIs
 		int i = 0;
 		for (ConceptChronology idConcept : identifierAnnotatedConcepts)
 		{
-			arrayToReturn[i++] = new RestConceptChronology(idConcept, false, true, false, (UUID) null, languageCoordinateToUse, 
+			arrayToReturn[i++] = new RestConceptChronology(idConcept, false, true, false, languageCoordinateToUse, 
 					RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED);
 		}
 

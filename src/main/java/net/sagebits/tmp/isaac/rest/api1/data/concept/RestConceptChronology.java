@@ -32,9 +32,9 @@ package net.sagebits.tmp.isaac.rest.api1.data.concept;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -122,20 +122,20 @@ public class RestConceptChronology implements Comparable<RestConceptChronology>
 		// for JaxB
 	}
 
-	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType, UUID processId)
+	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType)
 	{
-		this(cc, includeAllVersions, includeLatestVersion, includeTerminologyType, processId, RequestInfo.get().getLanguageCoordinate(), 
+		this(cc, includeAllVersions, includeLatestVersion, includeTerminologyType, RequestInfo.get().getLanguageCoordinate(), 
 				RequestInfo.get().getManifoldCoordinate().getTaxonomyPremiseType() == PremiseType.STATED);
 	}
 	
-	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType, UUID processId,
+	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeTerminologyType, 
 			LanguageCoordinate descriptionLanguageCoordinate, boolean stated)
 	{
-		this(cc, includeAllVersions, includeLatestVersion, false, false, includeTerminologyType, processId, descriptionLanguageCoordinate, stated);
+		this(cc, includeAllVersions, includeLatestVersion, false, false, includeTerminologyType, descriptionLanguageCoordinate, stated);
 	}
 
 	public RestConceptChronology(ConceptChronology cc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeParents, 
-			boolean countParents, boolean includeTerminologyType, UUID processId, LanguageCoordinate descriptionLanguageCoordinate, boolean stated)
+			boolean countParents, boolean includeTerminologyType, LanguageCoordinate descriptionLanguageCoordinate, boolean stated)
 	{
 		identifiers = new RestIdentifiedObject(cc);
 
@@ -166,19 +166,29 @@ public class RestConceptChronology implements Comparable<RestConceptChronology>
 				List<ConceptVersion> cvl = cc.getVersionList();
 				for (ConceptVersion cv : cvl)
 				{
-					versions.add(new RestConceptVersion(cv, false, includeParents, countParents, false, false, false, false, false, processId));
+					versions.add(new RestConceptVersion(cv, false, includeParents, countParents, false, false, stated, false, false, false));
 				}
 			}
 			else // if (includeLatestVersion)
 			{
-				LatestVersion<ConceptVersion> latest = cc.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, cc.getNid()));
+				LatestVersion<ConceptVersion> latest = cc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 				Util.logContradictions(log, latest);
 
 				if (latest.isPresent())
 				{
 					// TODO handle contradictions
-					versions.add(new RestConceptVersion(latest.get(), false, includeParents, countParents, false, false, stated, false, false, processId));
+					versions.add(new RestConceptVersion(latest.get(), false, includeParents, countParents, false, false, stated, false, false, true));
 				}
+				
+				//newest to oldest
+				versions.sort(new Comparator<RestConceptVersion>()
+				{
+					@Override
+					public int compare(RestConceptVersion o1, RestConceptVersion o2)
+					{
+						return -1 * Long.compare(o1.conVersion.time, o2.conVersion.time);
+					}
+				});
 			}
 		}
 		else

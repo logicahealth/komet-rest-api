@@ -2,22 +2,40 @@
  * 
  * <h1>ISAAC Web Server</h1>
  * <p>
- * A REST server with a simple data model for accessing <u>ISAAC</u> functionality in the SOLOR data model.
- * Primarily supports the <u>UTS Web Editor</u>.
+ *   A REST server with a simple data model for accessing <u>ISAAC</u> functionality in the SOLOR data model.
+ *   Primarily supports the <u>UTS Web Editor</u>.
  * </p>
  * 
  * <p></p>
+ * <h1>ISAAC FHIR Terminology Server</h1>
+ * <p>
+ *   This REST server also supports the <a href="https://www.hl7.org/fhir/terminology-module.html">Terminology Module APIs</a> of the 
+ *   FHIR <a href="http://hl7.org/fhir/http.html">RESTful API</a>
+ * </p>
+ * 
+ * <p>
+ *   The supported FHIR API calls are not yet documented in this enunciate package.  See the FHIR documentation from hl7 for details on the 
+ *   methods and parameters. 
+ * </p>
+ * 
  * <p></p>
+ * <p>
+ *   <li><a href="fhir/r4/TerminologyCapabilities?_format=json">Terminology Capabilities</a>
+ *   <li><a href="fhir/r4/metadata?_format=json">Capability Statement</a>
+ * </p>
  * <p></p>
+ * <p>
+ *   All parameters detailed below for user auth and coordinates are also applicable to the FHIR API calls. 
+ * </p>
  * 
  * <h2>Authentication</h2>
  * <p>
- * The server can be used in local authentication mode, or configured against a uts-auth-api instance, which would be more typical deployment 
- * when the uts-web-editor is also deployed.
+ *  The server can be used in local authentication mode, or configured against a uts-auth-api instance, which would be more typical deployment 
+ *   when the uts-web-editor is also deployed.
  * 
- * To configure the auth mode, see the src/test/resources/uts-rest-api.properties file.
+ *   To configure the auth mode, see the src/test/resources/uts-rest-api.properties file.
  * 
- * In local auth mode, all queries support the following parameters:
+ *   In local auth mode, all queries support the following parameters:
  * </p>
  * <p>
  * <code>ssoToken - optional - a previously issued token that represents an authenticated user.</code>

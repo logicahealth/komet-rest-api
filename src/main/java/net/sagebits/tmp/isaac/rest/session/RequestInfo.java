@@ -31,6 +31,7 @@
 package net.sagebits.tmp.isaac.rest.session;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -40,12 +41,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.ws.rs.container.ContainerRequestContext;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import net.sagebits.tmp.isaac.rest.ApplicationConfig;
+import net.sagebits.tmp.isaac.rest.ExpandUtil;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.enumerations.RestSupportedIdType;
@@ -155,7 +155,15 @@ public class RequestInfo
 			{
 				if (expandable != null)
 				{
-					requestInfo.get().expandablesForDirectExpansion_.add(expandable.trim());
+					String expandFlag = expandable.trim();
+					if (ExpandUtil.isValidExpansion(expandFlag))
+					{
+						requestInfo.get().expandablesForDirectExpansion_.add(expandFlag);
+					}
+					else
+					{
+						throw new RestException("The expansion parameter value '" + expandFlag + "' is invalid");
+					}
 				}
 			}
 		}
@@ -185,11 +193,11 @@ public class RequestInfo
 	/**
 	 * This populates the user for the request, if possible.
 	 * @param parameters
-	 * @param requestContext 
+	 * @param path 
 	 * @return
 	 * @throws Exception
 	 */
-	public RequestInfo readAll(Map<String, List<String>> parameters, ContainerRequestContext requestContext) throws Exception
+	public RequestInfo readAll(Map<String, List<String>> parameters, String path) throws Exception
 	{
 		parameters_.clear();
 		for (Map.Entry<String, List<String>> entry : parameters.entrySet())
@@ -202,7 +210,6 @@ public class RequestInfo
 		
 		if (!user_.isPresent())
 		{
-			String path = requestContext.getUriInfo().getPath(true);
 			//TODO remove this once again, when we have a way to pre-popluate a user with AUTOMATED role permissions to the web-editor
 			//Allow version info to be retrieved - but assign a userID to the request, if we don't have one
 			if ((RestPaths.systemAPIsPathComponent + RestPaths.systemInfoComponent).startsWith(path))
@@ -328,6 +335,31 @@ public class RequestInfo
 	{
 		return expandablesForDirectExpansion_.contains(expandable);
 	}
+	
+	public void validateMethodExpansions(String ... methodAllowedExpansions) throws RestException
+	{
+		if (expandablesForDirectExpansion_.size() > methodAllowedExpansions.length)
+		{
+			throw new RestException("This method only supports the expansion flags of :" + Arrays.toString(methodAllowedExpansions));
+		}
+		
+		for (String s : expandablesForDirectExpansion_)
+		{
+			boolean found = false;
+			for (String methodAllowed : methodAllowedExpansions)
+			{
+				if (s.equals(methodAllowed))
+				{
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+			{
+				throw new RestException("The expand value of " + s + " is not supported by this method");
+			}
+		}
+	}
 
 	public boolean returnExpandableLinks()
 	{
@@ -358,7 +390,7 @@ public class RequestInfo
 		return user_ != null && user_.isPresent();
 	}
 
-	public Optional<RestUser> getUser() throws RestException
+	public Optional<RestUser> getUser()
 	{
 		return user_ == null ? Optional.empty() : user_;
 	}
@@ -376,7 +408,6 @@ public class RequestInfo
 			{
 				Integer module = null;
 				Integer path = null;
-				UUID workflowProcessid = null;
 
 				// Set default EditToken parameters to values in passedEditToken if set, otherwise set to default
 				Optional<String> passedEditTokenSerialized = RequestInfoUtils.getEditTokenParameterStringValue(parameters_);
@@ -390,15 +421,7 @@ public class RequestInfo
 					// Set local values to values from passed EditToken
 					module = passedEditToken.getModuleNid();
 					path = passedEditToken.getPathNid();
-					workflowProcessid = passedEditToken.getActiveWorkflowProcessId();
 
-					// Override values from passed EditToken with values from parameters
-					if (parameters_.containsKey(RequestParameters.processId))
-					{
-						RequestInfoUtils.validateSingleParameterValue(parameters_, RequestParameters.processId);
-						workflowProcessid = RequestInfoUtils.parseUuidParameter(RequestParameters.processId,
-								parameters_.get(RequestParameters.processId).iterator().next());
-					}
 					if (parameters_.containsKey(RequestParameters.editModule))
 					{
 						module = RequestInfoUtils.getConceptNidFromParameter(parameters_, RequestParameters.editModule);
@@ -408,7 +431,7 @@ public class RequestInfo
 						path = RequestInfoUtils.getConceptNidFromParameter(parameters_, RequestParameters.editPath);
 					}
 
-					passedEditToken.updateValues(module, path, workflowProcessid);
+					passedEditToken.updateValues(module, path);
 
 					editToken_ = passedEditToken;
 					log.debug("Populated EditToken '{}' into RequestInfo", editToken_);
@@ -449,11 +472,6 @@ public class RequestInfo
 		}
 
 		return editCoordinate_;
-	}
-
-	public UUID getActiveWorkflowProcessId() throws RestException
-	{
-		return getEditToken().getActiveWorkflowProcessId();
 	}
 
 	public LanguageCoordinate getLanguageCoordinate()
@@ -510,8 +528,9 @@ public class RequestInfo
 		}
 		else
 		{
-			coordinatesToken_ = CoordinatesTokens.getDefaultCoordinatesToken().getSerialized();
-			return CoordinatesTokens.getDefaultCoordinatesToken();
+			CoordinatesToken ct = CoordinatesTokens.getDefaultCoordinatesToken();
+			coordinatesToken_ = ct.getSerialized();
+			return ct;
 		}
 	}
 

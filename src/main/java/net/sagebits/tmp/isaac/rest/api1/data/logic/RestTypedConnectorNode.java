@@ -42,6 +42,7 @@ import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.externalizable.IsaacObjectType;
 import sh.isaac.model.logic.node.external.TypedNodeWithUuids;
 import sh.isaac.model.logic.node.internal.TypedNodeWithNids;
@@ -99,36 +100,38 @@ public abstract class RestTypedConnectorNode extends RestConnectorNode
 
 	/**
 	 * @param typedNodeWithNids
+	 * @param coordForRead 
 	 */
-	public RestTypedConnectorNode(TypedNodeWithNids typedNodeWithNids)
+	public RestTypedConnectorNode(TypedNodeWithNids typedNodeWithNids, ManifoldCoordinate coordForRead)
 	{
-		super(typedNodeWithNids);
+		super(typedNodeWithNids, coordForRead);
 		connectorTypeConcept = new RestIdentifiedObject(typedNodeWithNids.getTypeConceptNid(), IsaacObjectType.CONCEPT);
-		finishSetup();
+		finishSetup(coordForRead);
 	}
 	
 	/**
 	 * @param typedNodeWithUuids
+	 * @param coordForRead 
 	 */
-	public RestTypedConnectorNode(TypedNodeWithUuids typedNodeWithUuids)
+	public RestTypedConnectorNode(TypedNodeWithUuids typedNodeWithUuids, ManifoldCoordinate coordForRead)
 	{
-		super(typedNodeWithUuids);
+		super(typedNodeWithUuids, coordForRead);
 		connectorTypeConcept = new RestIdentifiedObject(Get.identifierService().getNidForUuids(typedNodeWithUuids.getTypeConceptUuid()),
 				IsaacObjectType.CONCEPT);
-		finishSetup();
+		finishSetup(coordForRead);
 	}
 	
-	private void finishSetup()
+	private void finishSetup(ManifoldCoordinate coordForRead)
 	{
-		connectorTypeDescription = Get.conceptService().getSnapshot(RequestInfo.get().getManifoldCoordinate()).conceptDescriptionText(connectorTypeConcept.nid);
+		connectorTypeDescription = Get.conceptService().getSnapshot(coordForRead).conceptDescriptionText(connectorTypeConcept.nid);
 		if (RequestInfo.get().shouldExpand(ExpandUtil.versionExpandable))
 		{
 			ConceptChronology cc = Get.conceptService().getConceptChronology(connectorTypeConcept.nid);
-			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(RequestInfo.get().getStampCoordinate());
+			LatestVersion<ConceptVersion> olcv = cc.getLatestVersion(coordForRead.getStampCoordinate());
 			// TODO handle contradictions
 			connectorTypeConceptVersion = new RestConceptVersion(olcv.get(), true, RequestInfo.get().shouldExpand(ExpandUtil.includeParents),
 					RequestInfo.get().shouldExpand(ExpandUtil.countParents),
-					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), null);
+					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), false);
 		}
 		else
 		{

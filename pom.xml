@@ -53,7 +53,7 @@
 			<dependency>
 				<groupId>com.fasterxml.jackson.core</groupId>
 				<artifactId>jackson-databind</artifactId>
-				<version>2.8.11.3</version>  <!-- We need to lock this to the version that jersey expects, rather than the version isaac tries to give us. -->
+				<version>2.8.11.3</version>  <!-- We need to lock this to the version that jersey expects, rather than the version isaac tries to give us. 2.8.10 aligns with the jersey version, but has a CVE vulnerability-->
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -205,14 +205,21 @@
 		<!-- Test dependencies -->
 		<dependency>
 			<groupId>org.glassfish.jersey.containers</groupId>
-			<artifactId>jersey-container-grizzly2-http</artifactId>
+			<artifactId>jersey-container-jetty-http</artifactId>
 			<version>${jersey.version}</version>
 			<scope>test</scope> <!-- This is just for testing in eclipse -->
+		</dependency>
+		
+		<dependency>
+			<groupId>org.eclipse.jetty</groupId>
+			<artifactId>jetty-servlet</artifactId>
+			<version>9.4.7.v20170914</version> <!-- Align this with the jetty version that the jersey-container-jetty brings in -->
+			<scope>test</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.glassfish.jersey.test-framework.providers</groupId>
-			<artifactId>jersey-test-framework-provider-grizzly2</artifactId>
+			<artifactId>jersey-test-framework-provider-jetty</artifactId>
 			<version>${jersey.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -393,7 +400,7 @@
 								<phase>test-compile</phase>
 								<configuration>
 									<classpathScope>test</classpathScope>
-									<mainClass>net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner</mainClass>
+									<mainClass>net.sagebits.tmp.isaac.rest.LocalServerRunner</mainClass>
 									<!-- Uncomment this argument, and adjust, to point at a specific database -->
 									<arguments>
 										<!--<argument>isaacDatabaseLocation=/mnt/STORAGE/Work/VetsEZ/Workspaces/ISAAC2/ISAAC-rest/vhat-2016.08.18-1.8-SNAPSHOT-all.data</argument> -->
@@ -425,7 +432,7 @@
 								<!-- argument>-DisaacDatabaseLocation=${isaacDatabaseLocation}</argument -->
 								<argument>-classpath</argument>
 								<classpath />
-								<argument>net.sagebits.tmp.isaac.rest.LocalGrizzlyRunner</argument>
+								<argument>net.sagebits.tmp.isaac.rest.LocalServerRunner</argument>
 							</arguments>
 						</configuration>
 						<executions>

@@ -37,7 +37,6 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -87,11 +86,6 @@ public class EditToken
 		}
 	});
 
-	// Generate UUID
-	// Using the text 'NO_ACTIVE_WORKFLOW'
-	// and the domain '5a2e7786-3e41-11dc-8314-0800200c9a66' (path ID from FQN description)
-	private static final UUID NULL_UUID = UUID.fromString("a051e620-4fe1-5174-97d9-53dbce2ead0d");
-
 	/**
 	 * @param encodedEditToken The string produced from a call to {@link #getSerialized()}
 	 * @return the EditToken object
@@ -119,7 +113,6 @@ public class EditToken
 	private long incrementTime;
 	private int moduleNid;
 	private int pathNid;
-	private UUID activeWorkflowProcessId;
 
 	// Transient - non-serialized variables
 	private transient EditCoordinate editCoordinate = null;
@@ -132,14 +125,12 @@ public class EditToken
 	 * @param authorNid
 	 * @param moduleNid
 	 * @param pathNid
-	 * @param activeWorkflowProcessId
 	 */
-	public EditToken(int authorNid, int moduleNid, int pathNid, UUID activeWorkflowProcessId)
+	public EditToken(int authorNid, int moduleNid, int pathNid)
 	{
 		this.authorNid = authorNid;
 		this.moduleNid = moduleNid;
 		this.pathNid = pathNid;
-		this.activeWorkflowProcessId = activeWorkflowProcessId;
 		this.increment = globalIncrement.getAndIncrement();
 		this.incrementTime = System.currentTimeMillis();
 		VALID_TOKENS.put(increment, System.currentTimeMillis());
@@ -188,16 +179,6 @@ public class EditToken
 			authorNid = buffer.getInt();
 			moduleNid = buffer.getInt();
 			pathNid = buffer.getInt();
-
-			UUID tmpUuid = buffer.getUuid();
-			if (tmpUuid.equals(NULL_UUID))
-			{
-				activeWorkflowProcessId = null;
-			}
-			else
-			{
-				activeWorkflowProcessId = tmpUuid;
-			}
 
 			log.debug("token decode time " + (System.currentTimeMillis() - time) + "ms");
 
@@ -269,14 +250,6 @@ public class EditToken
 	}
 
 	/**
-	 * @return the active workflowProcess UUID id
-	 */
-	public UUID getActiveWorkflowProcessId()
-	{
-		return activeWorkflowProcessId;
-	}
-
-	/**
 	 * @return the cached EditCoordinate
 	 */
 	public EditCoordinate getEditCoordinate()
@@ -314,15 +287,6 @@ public class EditToken
 		buffer.putInt(authorNid);
 		buffer.putInt(moduleNid);
 		buffer.putInt(pathNid);
-
-		if (activeWorkflowProcessId == null)
-		{
-			buffer.putUuid(NULL_UUID);
-		}
-		else
-		{
-			buffer.putUuid(activeWorkflowProcessId);
-		}
 
 		buffer.trimToSize();
 		return buffer.getData();
@@ -367,20 +331,11 @@ public class EditToken
 		return this;
 	}
 
-	public void updateActiveWorkflowProcessId(UUID workflowProcessId)
-	{
-		EDIT_TOKEN_LOOKUP_CACHE.remove(getSerialized());
-		this.activeWorkflowProcessId = workflowProcessId;
-		this.serialization = serialize();
-		EDIT_TOKEN_LOOKUP_CACHE.put(getSerialized(), this);
-	}
-
-	public void updateValues(int moduleNid, int pathNid, UUID workflowProcessId)
+	public void updateValues(int moduleNid, int pathNid)
 	{
 		EDIT_TOKEN_LOOKUP_CACHE.remove(getSerialized());
 		this.moduleNid = moduleNid;
 		this.pathNid = pathNid;
-		this.activeWorkflowProcessId = workflowProcessId;
 		this.serialization = serialize();
 		EDIT_TOKEN_LOOKUP_CACHE.put(getSerialized(), this);
 	}
@@ -407,15 +362,12 @@ public class EditToken
 	public String toString()
 	{
 		return "EditToken [increment=" + increment + ", incrementTime=" + incrementTime + ", authorNid=" + authorNid + ", moduleNid="
-				+ moduleNid + ", pathNid=" + pathNid + ", activeWorkflowProcessId=" + activeWorkflowProcessId + ", serialization="
-				+ serialization + "]";
+				+ moduleNid + ", pathNid=" + pathNid + ", serialization=" + serialization + "]";
 	}
 
 	public static void main(String[] args) throws Exception
 	{
-		UUID randomUuid = UUID.randomUUID();
-
-		EditToken t = new EditToken(1, 2, 3, randomUuid);
+		EditToken t = new EditToken(1, 2, 3);
 		String token = t.serialize();
 		System.out.println(token);
 		EditToken t1 = new EditToken(token);

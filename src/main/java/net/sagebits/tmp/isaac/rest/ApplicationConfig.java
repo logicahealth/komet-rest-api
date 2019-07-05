@@ -82,7 +82,7 @@ import sh.isaac.api.constants.SystemPropertyConstants;
 import sh.isaac.api.util.DownloadUnzipTask;
 import sh.isaac.api.util.RecursiveDelete;
 import sh.isaac.api.util.WorkExecutors;
-import sh.isaac.convert.mojo.turtle.TurtleImportMojoDirect;
+import sh.isaac.convert.mojo.turtle.TurtleImportHK2Direct;
 import sh.isaac.dbConfigBuilder.artifacts.MavenArtifactUtils;
 import sh.isaac.metadata.source.IsaacMetadataAuxiliary;
 
@@ -395,7 +395,7 @@ public class ApplicationConfig extends ResourceConfig implements ContainerLifecy
 								if (beer.isFile())
 								{
 									log.info("Loading beer....");
-									TurtleImportMojoDirect timd = new TurtleImportMojoDirect();
+									TurtleImportHK2Direct timd = Get.service(TurtleImportHK2Direct.class);
 									timd.configure(null, beer.toPath(), "0.8", null);
 									timd.convertContent(update -> {}, (work, total) -> {});
 									Get.indexDescriptionService().refreshQueryEngine();

@@ -274,6 +274,7 @@ public class RestIdentifiedObject
 			{
 				description = Get.conceptDescriptionText(nid);
 			}
+			populateAltIds();
 		}
 		else
 		{

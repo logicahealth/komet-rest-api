@@ -55,8 +55,8 @@ import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 public class ThreadLocalCleanupContainerResponseFilter implements ContainerResponseFilter
 {
 	private static Logger log = LogManager.getLogger();
-	private static Logger slowQueryLog = LogManager.getLogger("net.sagebits.tmp.isaac.rest.SlowQueryLog");
-	private static Logger userQueryLog = LogManager.getLogger("net.sagebits.tmp.isaac.rest.UserLog");
+	protected static Logger slowQueryLog = LogManager.getLogger("net.sagebits.tmp.isaac.rest.SlowQueryLog");
+	protected static Logger userQueryLog = LogManager.getLogger("net.sagebits.tmp.isaac.rest.UserLog");
 
 	/**
 	 * {@inheritDoc}

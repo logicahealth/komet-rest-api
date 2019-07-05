@@ -32,7 +32,6 @@ package net.sagebits.tmp.isaac.rest.api1.data.semantic;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -70,38 +69,38 @@ public class RestDynamicSemanticVersion extends RestSemanticVersion
 		// for Jaxb
 	}
 
-	public RestDynamicSemanticVersion(DynamicVersion<?> dsv, boolean includeChronology, boolean expandNested, boolean populateReferenced, UUID processId)
-			throws RestException
+	public RestDynamicSemanticVersion(DynamicVersion<?> dsv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStamp) throws RestException
 	{
-		super(dsv, includeChronology, expandNested, populateReferenced, null, processId);
+		super(dsv, includeChronology, expandNested, expandReferenced, useLatestStamp, null);
 		dataColumns = translateData(dsv.getData());
 	}
 
-	public RestDynamicSemanticVersion(StringVersion sv, boolean includeChronology, boolean expandNested, boolean populateReferenced, UUID processid)
-			throws RestException
+	public RestDynamicSemanticVersion(StringVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStamp) throws RestException
 	{
-		super(sv, includeChronology, expandNested, populateReferenced, null, processid);
+		super(sv, includeChronology, expandNested, expandReferenced, useLatestStamp, null);
 		dataColumns = translateData(new DynamicData[] { new DynamicStringImpl(sv.getString()) });
 	}
 
-	public RestDynamicSemanticVersion(LongVersion sv, boolean includeChronology, boolean expandNested, boolean populateReferenced, UUID processId)
-			throws RestException
+	public RestDynamicSemanticVersion(LongVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStamp) throws RestException
 	{
-		super(sv, includeChronology, expandNested, populateReferenced, null, processId);
+		super(sv, includeChronology, expandNested, expandReferenced, useLatestStamp, null);
 		dataColumns = translateData(new DynamicData[] { new DynamicLongImpl(sv.getLongValue()) });
 	}
 
-	public RestDynamicSemanticVersion(ComponentNidVersion sv, boolean includeChronology, boolean expandNested, boolean populateReferenced, UUID processId)
-			throws RestException
+	public RestDynamicSemanticVersion(ComponentNidVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStamp) throws RestException
 	{
-		super(sv, includeChronology, expandNested, populateReferenced, null, processId);
+		super(sv, includeChronology, expandNested, expandReferenced, useLatestStamp, null);
 		dataColumns = translateData(new DynamicData[] { new DynamicNidImpl(sv.getComponentNid()) });
 	}
 
-	public RestDynamicSemanticVersion(SemanticVersion sv, boolean includeChronology, boolean expandNested, boolean populateReferenced, UUID processId)
-			throws RestException
+	public RestDynamicSemanticVersion(SemanticVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStamp) throws RestException
 	{
-		super(sv, includeChronology, expandNested, populateReferenced, null, processId);
+		super(sv, includeChronology, expandNested, expandReferenced, useLatestStamp, null);
 		// no data
 	}
 

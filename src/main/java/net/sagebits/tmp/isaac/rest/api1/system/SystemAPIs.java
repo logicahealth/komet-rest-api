@@ -111,12 +111,18 @@ public class SystemAPIs
 
 	/**
 	 * @param id The id for which to retrieve objects. May be a UUID or NID
-	 * @param expand comma separated list of fields to expand. Support depends on type of object identified by the passed id
-	 *            RestConceptChronology supports 'versionsAll', 'versionsLatestOnly'
-	 *            RestSemanticChronology supports 'chronology', 'nestedSemantics', 'referencedDetails'
-	 *            When referencedDetails is passed, nids will include type information, and certain nids will also include their descriptions,
+	 * @param expand comma separated list of fields to expand. Support depends on type of object identified by the passed id.
+	 *     Both concepts and semantics support:
+	 *       <br> 'versionsAll' - returns all versions of the concept.  Note that, this only includes all versions for the top level concept chronology.
+	 *         For nested objects, the most appropriate version is returned, relative to the version of the concept being returned.  In other words, the STAMP 
+	 *         of the concept version being returned is used to calculate the appropriate stamp for the referenced component versions, when they are looked up.
+	 *         Sorted newest to oldest
+	 *       <br> 'versionsLatestOnly' - ignored if specified in combination with versionsAll
+	 *       <br>
+	 *       <br> In addition, if the passed in id is a semantic, then it also supports:
+	 *       <br> 'referencedDetails' - When referencedDetails is passed, nids will include type information, and certain nids will also include their descriptions,
 	 *            if they represent a concept or a description semantic.
-	 * @param processId 
+	 *       <br> 'nestedSemantics' - 
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken
 	 *            may be obtained by a separate (prior) call to getCoordinatesToken().
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -129,11 +135,13 @@ public class SystemAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.identifiedObjectsComponent + "{" + RequestParameters.id + "}")
 	public RestIdentifiedObjectsResult getIdentifiedObjects(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
 		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.id, RequestParameters.expand,
-				RequestParameters.processId, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.versionsAllExpandable, ExpandUtil.versionsLatestOnlyExpandable, ExpandUtil.nestedSemanticsExpandable, 
+				ExpandUtil.referencedDetails);
 
 		RestConceptChronology concept = null;
 		RestSemanticChronology semantic = null;
@@ -150,7 +158,7 @@ public class SystemAPIs
 					{
 						concept = new RestConceptChronology(Get.conceptService().getConceptChronology(intId.getAsInt()),
 								RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-								RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true, Util.validateWorkflowProcess(processId));
+								RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true);
 						break;
 					}
 					case SEMANTIC:
@@ -158,7 +166,7 @@ public class SystemAPIs
 								RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
 								RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable),
 								RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable),
-								RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), Util.validateWorkflowProcess(processId));
+								RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails));
 						break;
 					case UNKNOWN:
 					default :
@@ -198,14 +206,14 @@ public class SystemAPIs
 						case CONCEPT:
 							concept = new RestConceptChronology(Get.conceptService().getConceptChronology(nid),
 									RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-									RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true, Util.validateWorkflowProcess(processId));
+									RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true);
 							break;
 						case SEMANTIC:
 							semantic = new RestSemanticChronology(Get.assemblageService().getSemanticChronology(nid),
 									RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
 									RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable),
 									RequestInfo.get().shouldExpand(ExpandUtil.nestedSemanticsExpandable),
-									RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails), Util.validateWorkflowProcess(processId));
+									RequestInfo.get().shouldExpand(ExpandUtil.referencedDetails));
 							break;
 						case UNKNOWN:
 						default :
@@ -493,7 +501,7 @@ public class SystemAPIs
 
 		if (cv.isPresent())
 		{
-			RestConceptVersion rcv = new RestConceptVersion(cv.get(), true, false, false, true, true, true, false, false, null);
+			RestConceptVersion rcv = new RestConceptVersion(cv.get(), true, false, false, true, true, true, false, false, true);
 
 			TaxonomySnapshot tss = Get.taxonomyService()
 					.getSnapshotNoTree(new ManifoldCoordinateImpl(PremiseType.STATED, StampCoordinates.getDevelopmentLatest(),
@@ -501,7 +509,7 @@ public class SystemAPIs
 							Get.configurationService().getGlobalDatastoreConfiguration().getDefaultLogicCoordinate()));
 
 			// TODO there is a bug here - the addChildren reads coords from the RequestInfo, if they pass in weird coords, it will mess up this call.
-			TaxonomyAPIs.addChildren(MetaData.MODULE____SOLOR.getNid(), rcv, tss, true, false, false, 3, false, false, new NidSet(), null, 1, 500);
+			TaxonomyAPIs.addChildren(MetaData.MODULE____SOLOR.getNid(), rcv, tss, true, false, false, 3, false, false, new NidSet(), 1, 500);
 
 			if (availableOnly == null || Boolean.parseBoolean(availableOnly))
 			{
@@ -560,7 +568,7 @@ public class SystemAPIs
 					//TODO I think this MOdule_solor should have changed to the metadata module, but not sure.  need to figure out why I added the test.
 					if (cc.getNid() != MetaData.MODULE____SOLOR.getNid() && Frills.getTerminologyTypes(concept, null).contains(cc.getNid()))
 					{
-						results.add(new RestConceptChronology(concept, false, false, false, null));
+						results.add(new RestConceptChronology(concept, false, false, false));
 					}
 				});
 
@@ -630,7 +638,7 @@ public class SystemAPIs
 								DynamicUUID type = (DynamicUUID)dv.getData(0);
 								
 								RestConceptVersion rcv = new RestConceptVersion((ConceptVersion)cc
-										.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+										.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 								rcv.setChildCount(0);
 								if (MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getUuidList().contains(type.getDataUUID()))
 								{
@@ -655,18 +663,18 @@ public class SystemAPIs
 
 		RestConceptVersion[] finalResult = new RestConceptVersion[3];
 		finalResult[0] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
-				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 		finalResult[0].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, fqns.size(), true, false, "", fqns.toArray(new RestConceptVersion[fqns.size()]));
 		finalResult[0].setChildCount(fqns.size());
 		
 		finalResult[1] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
-				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 		finalResult[1].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, regName.size(), true, false, "", 
 				regName.toArray(new RestConceptVersion[regName.size()]));
 		finalResult[1].setChildCount(regName.size());
 		
 		finalResult[2] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getNid())
-				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 		finalResult[2].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, definition.size(), true, false, "", 
 				definition.toArray(new RestConceptVersion[definition.size()]));
 		finalResult[2].setChildCount(definition.size());
@@ -726,7 +734,7 @@ public class SystemAPIs
 						DynamicUUID type = (DynamicUUID)dv.getData(0);
 						
 						RestConceptVersion rcv = new RestConceptVersion((ConceptVersion)cc
-								.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+								.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 						rcv.setChildCount(0);
 						if (MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getUuidList().contains(type.getDataUUID()))
 						{
@@ -749,18 +757,18 @@ public class SystemAPIs
 
 		RestConceptVersion[] finalResult = new RestConceptVersion[3];
 		finalResult[0] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.FULLY_QUALIFIED_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
-				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 		finalResult[0].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, fqns.size(), true, false, "", fqns.toArray(new RestConceptVersion[fqns.size()]));
 		finalResult[0].setChildCount(fqns.size());
 		
 		finalResult[1] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.REGULAR_NAME_DESCRIPTION_TYPE____SOLOR.getNid())
-				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 		finalResult[1].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, regName.size(), true, false, "", 
 				regName.toArray(new RestConceptVersion[regName.size()]));
 		finalResult[1].setChildCount(regName.size());
 		
 		finalResult[2] = new RestConceptVersion((ConceptVersion)Get.concept(MetaData.DEFINITION_DESCRIPTION_TYPE____SOLOR.getNid())
-				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true, null);
+				.getLatestVersion(RequestInfo.get().getStampCoordinate()).get(), true);
 		finalResult[2].children = new RestConceptVersionPage(1, Integer.MAX_VALUE, definition.size(), true, false, "", 
 				definition.toArray(new RestConceptVersion[definition.size()]));
 		finalResult[2].setChildCount(definition.size());

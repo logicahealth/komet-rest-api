@@ -41,6 +41,7 @@ import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.concept.ConceptChronology;
 import sh.isaac.api.component.concept.ConceptVersion;
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.logic.NodeSemantic;
 import sh.isaac.model.logic.ConcreteDomainOperators;
 import sh.isaac.model.logic.node.external.FeatureNodeWithUuids;
@@ -95,34 +96,36 @@ public class RestFeatureNode extends RestTypedConnectorNode
 
 	/**
 	 * @param featureNodeWithNids
+	 * @param coordForRead 
 	 */
-	public RestFeatureNode(FeatureNodeWithNids featureNodeWithNids)
+	public RestFeatureNode(FeatureNodeWithNids featureNodeWithNids, ManifoldCoordinate coordForRead)
 	{
-		super(featureNodeWithNids);
-		setup(featureNodeWithNids.getOperator(), Get.concept(featureNodeWithNids.getMeasureSemanticNid()));
+		super(featureNodeWithNids, coordForRead);
+		setup(featureNodeWithNids.getOperator(), Get.concept(featureNodeWithNids.getMeasureSemanticNid()), coordForRead);
 	}
 
 	/**
 	 * @param featureNodeWithUuids
+	 * @param coordForRead 
 	 */
-	public RestFeatureNode(FeatureNodeWithUuids featureNodeWithUuids)
+	public RestFeatureNode(FeatureNodeWithUuids featureNodeWithUuids, ManifoldCoordinate coordForRead)
 	{
-		super(featureNodeWithUuids);
-		setup(featureNodeWithUuids.getOperator(), Get.concept(featureNodeWithUuids.getMeasureSemanticUuid()));
+		super(featureNodeWithUuids, coordForRead);
+		setup(featureNodeWithUuids.getOperator(), Get.concept(featureNodeWithUuids.getMeasureSemanticUuid()), coordForRead);
 	}
 	
-	private void setup(ConcreteDomainOperators cdo, ConceptChronology msc)
+	private void setup(ConcreteDomainOperators cdo, ConceptChronology msc, ManifoldCoordinate coordForRead)
 	{
 		operator = new RestConcreteDomainOperatorsType(cdo);
 		measureSemanticConcept = new RestIdentifiedObject(msc);
 
 		if (RequestInfo.get().shouldExpand(ExpandUtil.versionExpandable))
 		{
-			LatestVersion<ConceptVersion> olcv = msc.getLatestVersion(RequestInfo.get().getStampCoordinate());
+			LatestVersion<ConceptVersion> olcv = msc.getLatestVersion(coordForRead.getStampCoordinate());
 			// TODO handle contradictions
 			measureSemanticConceptVersion = new RestConceptVersion(olcv.get(), true, RequestInfo.get().shouldExpand(ExpandUtil.includeParents),
 					RequestInfo.get().shouldExpand(ExpandUtil.countParents),
-					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), null);
+					false, false, RequestInfo.get().getStated(), false, RequestInfo.get().shouldExpand(ExpandUtil.terminologyType), false);
 		}
 		else
 		{

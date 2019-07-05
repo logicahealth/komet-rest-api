@@ -43,6 +43,8 @@ public class RestPaths
 	public static final String createPathComponent = "create/";
 	public static final String updatePathComponent = "update/";
 	public static final String clonePathComponent = "clone/";
+	
+	public static final String fhir = "fhir/";
 
 	public static final String chronologyComponent = "chronology/";
 	public static final String updateStateComponent = "state/";
@@ -66,6 +68,8 @@ public class RestPaths
 	public static final String termRequestComponent = "termRequest/";
 	public static final String userComponent = "user/";
 	public static final String vetsXMLComponent = "vetsXML/";
+	public static final String ibdfComponent = "ibdf/";
+	public static final String ibdfArtifactComponent = "ibdfArtifact/";
 	public static final String terminologyTypes = "terminologyTypes/";
 	public static final String modules = "modules/";
 	public static final String extendedDescriptionTypes = "extendedDescriptionTypes/";

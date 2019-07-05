@@ -36,7 +36,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.security.RolesAllowed;
 import javax.ws.rs.DefaultValue;
@@ -48,7 +47,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.SecurityContext;
-import net.sagebits.tmp.isaac.rest.Util;
+import net.sagebits.tmp.isaac.rest.ExpandUtil;
 import net.sagebits.tmp.isaac.rest.api.exceptions.RestException;
 import net.sagebits.tmp.isaac.rest.api1.RestPaths;
 import net.sagebits.tmp.isaac.rest.api1.data.association.RestAssociationItemVersion;
@@ -61,7 +60,6 @@ import net.sagebits.uts.auth.data.UserRole.SystemRoleConstants;
 import sh.isaac.api.Get;
 import sh.isaac.api.chronicle.LatestVersion;
 import sh.isaac.api.component.semantic.version.DynamicVersion;
-import sh.isaac.api.coordinate.StampCoordinate;
 import sh.isaac.api.util.AlphanumComparator;
 import sh.isaac.misc.associations.AssociationInstance;
 import sh.isaac.misc.associations.AssociationType;
@@ -83,14 +81,9 @@ public class AssociationAPIs
 	/**
 	 * Get all defined association types in the system.
 	 * 
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param expand - the optional items to be expanded. Supports 'referencedConcept' If 'referencedConcept' is passed, you can also pass
-	 *            'versionsAll' or 'versionsLatestOnly'
+	 * @param expand - the optional items to be expanded. Supports 'referencedConcept' If 'referencedConcept' is passed, you can also pass 'versionsLatestOnly'
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
 	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
 	 *     performance. 
@@ -103,27 +96,25 @@ public class AssociationAPIs
 	@GET
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationsComponent)
-	public RestAssociationTypeVersion[] getAssociations(@QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+	public RestAssociationTypeVersion[] getAssociations(@QueryParam(RequestParameters.coordToken) String coordToken, 
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, 
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
-
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable);
+		
 		ArrayList<RestAssociationTypeVersion> results = new ArrayList<>();
 
 		Set<Integer> associationConcepts = AssociationUtilities.getAssociationConceptNids();
 
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
-
 		for (int nid : associationConcepts)
 		{
-			StampCoordinate sc = Util.getPreWorkflowStampCoordinate(processId, nid);
-			AssociationType associationTypeToAdd = AssociationType.read(nid, sc, RequestInfo.get().getLanguageCoordinate());
+			AssociationType associationTypeToAdd = AssociationType.read(nid, RequestInfo.get().getStampCoordinate(), RequestInfo.get().getLanguageCoordinate());
 
 			if (associationTypeToAdd != null)
 			{
-				results.add(new RestAssociationTypeVersion(associationTypeToAdd, processIdUUID));
+				results.add(new RestAssociationTypeVersion(associationTypeToAdd));
 			}
 		}
 
@@ -146,12 +137,7 @@ public class AssociationAPIs
 	 * @param id - A UUID or nid of a concept that defines an association type
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
-	 * @param expand - the optional items to be expanded. Supports 'referencedConcept' If 'referencedConcept' is passed, you can also pass
-	 *            'versionsAll' or 'versionsLatestOnly'
+	 * @param expand - the optional items to be expanded. Supports 'referencedConcept' If 'referencedConcept' is passed, you can also pass 'versionsLatestOnly'
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
 	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
 	 *     performance. 
@@ -163,17 +149,16 @@ public class AssociationAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationTypeVersion getAssociationType(@PathParam(RequestParameters.id) String id,
-			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.referencedConcept, ExpandUtil.versionsLatestOnlyExpandable);
 
 		int nid = RequestInfoUtils.getConceptNidFromParameter(RequestParameters.id, id);
-		StampCoordinate conceptVersionStampCoordinate = Util.getPreWorkflowStampCoordinate(processId, nid);
-		return new RestAssociationTypeVersion(AssociationType.read(nid, conceptVersionStampCoordinate, RequestInfo.get().getLanguageCoordinate()),
-				Util.validateWorkflowProcess(processId));
+		return new RestAssociationTypeVersion(AssociationType.read(nid, RequestInfo.get().getStampCoordinate(), RequestInfo.get().getLanguageCoordinate()));
 	}
 
 	/**
@@ -185,15 +170,9 @@ public class AssociationAPIs
 	 * @param maxPageSize The maximum number of results to return per page, must be greater than 0
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - the optional items to be expanded. Supports 'source', 'target', 'nestedSemantics'
-	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsAll',
-	 *            'versionsLatestOnly'
-	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
-	 *            'chronology'
+	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsLatestOnly'
+	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails', 'chronology'
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
 	 *     returned.  This can be set to one or more names or ids from the /1/id/types or the value 'ANY'.  Requesting IDs that are unneeded will harm 
 	 *     performance. 
@@ -207,14 +186,14 @@ public class AssociationAPIs
 	public RestAssociationItemVersionPage getAssociationsOfType(@PathParam(RequestParameters.id) String id,
 			@QueryParam(RequestParameters.pageNum) @DefaultValue(RequestParameters.pageNumDefault) int pageNum,
 			@QueryParam(RequestParameters.maxPageSize) @DefaultValue(RequestParameters.maxPageSizeDefault) int maxPageSize,
-			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
 				RequestParameters.PAGINATION_PARAM_NAMES, RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
-
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.source, ExpandUtil.target, ExpandUtil.nestedSemanticsExpandable,  
+				ExpandUtil.versionsLatestOnlyExpandable, ExpandUtil.referencedDetails, ExpandUtil.chronologyExpandable);
 
 		ArrayList<RestAssociationItemVersion> results;
 		try
@@ -235,8 +214,7 @@ public class AssociationAPIs
 						}
 						else
 						{
-							results.add(new RestAssociationItemVersion(AssociationInstance.read(latest.get(), RequestInfo.get().getStampCoordinate()),
-									processIdUUID));
+							results.add(new RestAssociationItemVersion(AssociationInstance.read(latest.get(), RequestInfo.get().getStampCoordinate())));
 						}
 					}
 				}
@@ -268,13 +246,8 @@ public class AssociationAPIs
 	 * @param id - A UUID or nid (of a concept or semantic) that must be the source portion of the returned association item.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - the optional items to be expanded. Supports 'source', 'target', 'nestedSemantics'
-	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsAll',
-	 *            'versionsLatestOnly'
+	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -288,21 +261,21 @@ public class AssociationAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationsWithSourceComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationItemVersion[] getSourceAssociations(@PathParam(RequestParameters.id) String id,
-			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
-
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.source, ExpandUtil.target, ExpandUtil.nestedSemanticsExpandable, 
+				ExpandUtil.referencedDetails, ExpandUtil.chronologyExpandable, ExpandUtil.versionsLatestOnlyExpandable);
 
 		List<AssociationInstance> results = AssociationUtilities.getSourceAssociations(RequestInfoUtils.getNidFromParameter(RequestParameters.id, id),
 				RequestInfo.get().getStampCoordinate());
 		RestAssociationItemVersion[] finalResult = new RestAssociationItemVersion[results.size()];
 		for (int i = 0; i < results.size(); i++)
 		{
-			finalResult[i] = new RestAssociationItemVersion(results.get(i), processIdUUID);
+			finalResult[i] = new RestAssociationItemVersion(results.get(i));
 		}
 		return finalResult;
 
@@ -314,13 +287,8 @@ public class AssociationAPIs
 	 * @param id - A UUID or nid (of a concept or semantic) that must be the target portion of the returned association item.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - the optional items to be expanded. Supports 'source', 'target', 'nestedSemantics'
-	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsAll',
-	 *            'versionsLatestOnly'
+	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -334,21 +302,22 @@ public class AssociationAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationsWithTargetComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationItemVersion[] getTargetAssociations(@PathParam(RequestParameters.id) String id,
-			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.processId) String processId,
-			@QueryParam(RequestParameters.expand) String expand,
+			@QueryParam(RequestParameters.coordToken) String coordToken, @QueryParam(RequestParameters.expand) String expand,
 			@QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, 
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.source, ExpandUtil.target, ExpandUtil.nestedSemanticsExpandable, 
+				ExpandUtil.referencedDetails, ExpandUtil.chronologyExpandable, ExpandUtil.versionsLatestOnlyExpandable);
 
 		// TODO Dan lookup by target performance is not good at the moment, not sure why
-		UUID processIdUUID = Util.validateWorkflowProcess(processId);
 		List<AssociationInstance> results = AssociationUtilities.getTargetAssociations(RequestInfoUtils.getNidFromParameter(RequestParameters.id, id),
 				RequestInfo.get().getStampCoordinate());
 		RestAssociationItemVersion[] finalResult = new RestAssociationItemVersion[results.size()];
 		for (int i = 0; i < results.size(); i++)
 		{
-			finalResult[i] = new RestAssociationItemVersion(results.get(i), processIdUUID);
+			finalResult[i] = new RestAssociationItemVersion(results.get(i));
 		}
 		return finalResult;
 
@@ -360,13 +329,8 @@ public class AssociationAPIs
 	 * @param id - A UUID or nid of a semantic association instance.
 	 * @param coordToken specifies an explicit serialized CoordinatesToken string specifying all coordinate parameters. A CoordinatesToken may
 	 *            be obtained by a separate (prior) call to getCoordinatesToken().
-	 * @param processId if set, specifies that retrieved components should be checked against the specified active
-	 *            workflow process, and if existing in the process, only the version of the corresponding object prior to the version referenced
-	 *            in the workflow process should be returned or referenced. If no version existed prior to creation of the workflow process,
-	 *            then either no object will be returned or an exception will be thrown, depending on context.
 	 * @param expand - the optional items to be expanded. Supports 'source', 'target', 'nestedSemantics'
-	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsAll',
-	 *            'versionsLatestOnly'
+	 *            When 'source' or 'target' is expanded, the following expand options are supported for expanded source and/or target: 'versionsLatestOnly'
 	 *            When 'nestedSemantics' is expanded, the following expand options are supported for the nested semantics: 'referencedDetails',
 	 *            'chronology'
 	 * @param altId - (optional) the altId type(s) to populate in any returned RestIdentifiedObject structures.  By default, no alternate IDs are 
@@ -382,16 +346,18 @@ public class AssociationAPIs
 	@Produces({ MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML })
 	@Path(RestPaths.associationItemComponent + "{" + RequestParameters.id + "}")
 	public RestAssociationItemVersion getAssociation(@PathParam(RequestParameters.id) String id, @QueryParam(RequestParameters.coordToken) String coordToken,
-			@QueryParam(RequestParameters.processId) String processId, @QueryParam(RequestParameters.expand) String expand,
-			@QueryParam(RequestParameters.altId) String altId) throws RestException
+			@QueryParam(RequestParameters.expand) String expand, @QueryParam(RequestParameters.altId) String altId) throws RestException
 	{
-		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand, RequestParameters.processId,
+		RequestParameters.validateParameterNamesAgainstSupportedNames(RequestInfo.get().getParameters(), RequestParameters.expand,
 				RequestParameters.COORDINATE_PARAM_NAMES, RequestParameters.altId);
+		
+		RequestInfo.get().validateMethodExpansions(ExpandUtil.source, ExpandUtil.target, ExpandUtil.nestedSemanticsExpandable,
+				ExpandUtil.versionsLatestOnlyExpandable, ExpandUtil.referencedDetails, ExpandUtil.chronologyExpandable);
 
 		Optional<AssociationInstance> result = AssociationUtilities.getAssociation(RequestInfoUtils.getSemanticNidFromParameter(RequestParameters.id, id),
 				RequestInfo.get().getStampCoordinate());
 
-		return result.isPresent() ? new RestAssociationItemVersion(result.get(), Util.validateWorkflowProcess(processId)) : null;
+		return result.isPresent() ? new RestAssociationItemVersion(result.get()) : null;
 
 	}
 }

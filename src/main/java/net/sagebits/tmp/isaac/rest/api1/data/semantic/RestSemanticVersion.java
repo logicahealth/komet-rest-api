@@ -33,8 +33,7 @@ package net.sagebits.tmp.isaac.rest.api1.data.semantic;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlSeeAlso;
@@ -53,7 +52,9 @@ import net.sagebits.tmp.isaac.rest.api1.semantic.SemanticAPIs;
 import net.sagebits.tmp.isaac.rest.api1.semantic.SemanticAPIs.SemanticVersions;
 import net.sagebits.tmp.isaac.rest.session.RequestInfo;
 import net.sagebits.tmp.isaac.rest.session.RequestParameters;
+import sh.isaac.api.ConceptProxy;
 import sh.isaac.api.chronicle.VersionType;
+import sh.isaac.api.component.concept.ConceptSpecification;
 import sh.isaac.api.component.semantic.version.ComponentNidVersion;
 import sh.isaac.api.component.semantic.version.DescriptionVersion;
 import sh.isaac.api.component.semantic.version.DynamicVersion;
@@ -61,6 +62,7 @@ import sh.isaac.api.component.semantic.version.LogicGraphVersion;
 import sh.isaac.api.component.semantic.version.LongVersion;
 import sh.isaac.api.component.semantic.version.SemanticVersion;
 import sh.isaac.api.component.semantic.version.StringVersion;
+import sh.isaac.api.coordinate.StampCoordinate;
 
 /**
  * 
@@ -85,28 +87,28 @@ public abstract class RestSemanticVersion
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	Expandables expandables;
+	public Expandables expandables;
 
 	/**
 	 * The semantic chronology for this concept. Depending on the expand parameter, may be empty.
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	RestSemanticChronology semanticChronology;
+	public RestSemanticChronology semanticChronology;
 
 	/**
 	 * The StampedVersion details for this version of this semantic.
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	RestStampedVersion semanticVersion;
+	public RestStampedVersion semanticVersion;
 
 	/**
 	 * The nested semantics attached to this semantic. Not populated by default, include expand=nested to expand these.
 	 */
 	@XmlElement
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	List<RestDynamicSemanticVersion> nestedSemantics = new ArrayList<>();
+	public List<RestDynamicSemanticVersion> nestedSemantics = new ArrayList<>();
 
 	protected RestSemanticVersion()
 	{
@@ -114,9 +116,9 @@ public abstract class RestSemanticVersion
 	}
 
 	public RestSemanticVersion(SemanticVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced,
-			Function<RestSemanticVersion, Boolean> includeInNested, UUID processId) throws RestException
+			boolean useLatestStamp, BiFunction<RestSemanticVersion, StampCoordinate, Boolean> includeInNested) throws RestException
 	{
-		setup(sv, includeChronology, expandNested, expandReferenced, includeInNested, processId);
+		setup(sv, includeChronology, expandNested, expandReferenced, useLatestStamp, includeInNested);
 	}
 
 	private static String getRequestPathForExpandable(SemanticVersion sv)
@@ -137,14 +139,26 @@ public abstract class RestSemanticVersion
 		}
 	}
 
+	/**
+	 * @param sv
+	 * @param includeChronology - true, to populate the semantiChronology aspect of this version
+	 * @param expandNested - true, to return nested semantics.  False to skip.
+	 * @param expandReferenced - if true, populate a description for the referencedComponent in the included chronology (if includeChronology is true)
+	 * @param useLatestStampForExpansion - true, to use the latest stamp from the request info when populating expansions.  False, to use a stamp
+	 *     which is constructed from the fields of the provided sv (this is normally what should be used when populating a list of all versions, so 
+	 *     that the expanded items match the point in time from the version being populated
+	 * @param includeInNested - an optional function that can be used to filter the nested semantics to include
+	 * @return the stamp coording used for the setup
+	 * @throws RestException
+	 */
 	protected void setup(SemanticVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced,
-			Function<RestSemanticVersion, Boolean> includeInNested, UUID processId) throws RestException
+			boolean useLatestStampForExpansion, BiFunction<RestSemanticVersion, StampCoordinate, Boolean> includeInNested) throws RestException
 	{
 		semanticVersion = new RestStampedVersion(sv);
 		expandables = new Expandables();
 		if (includeChronology)
 		{
-			semanticChronology = new RestSemanticChronology(sv.getChronology(), false, false, false, expandReferenced, processId);
+			semanticChronology = new RestSemanticChronology(sv.getChronology(), false, false, false, expandReferenced);
 		}
 		else
 		{
@@ -164,13 +178,16 @@ public abstract class RestSemanticVersion
 		if (expandNested)
 		{
 			nestedSemantics.clear();
+			
+			StampCoordinate stampToUse = computeVersionStamp(sv, useLatestStampForExpansion);
+			
 			// Always include the chronology for nested semantics... otherwise, the user would always have to make a return trip to find out what the
 			// nested thing is
-			SemanticVersions temp = SemanticAPIs.get(sv.getNid() + "", null, 1, Integer.MAX_VALUE, true, processId);
+			SemanticVersions temp = SemanticAPIs.get(sv.getNid() + "", null, 1, Integer.MAX_VALUE, true, false, stampToUse);
 			for (SemanticVersion nestedSv : temp.getValues())
 			{
-				RestSemanticVersion rsv = RestSemanticVersion.buildRestSemanticVersion(nestedSv, true, true, expandReferenced, processId);
-				if (includeInNested == null || includeInNested.apply(rsv))
+				RestSemanticVersion rsv = RestSemanticVersion.buildRestSemanticVersion(nestedSv, true, true, false, false);
+				if (includeInNested == null || includeInNested.apply(rsv, stampToUse))
 				{
 					// This cast is expected to be safe - we should never nest a DescriptionSemantic under another type of Semantic.
 					// In the case where we do have descriptions, the includeInNested function should handle it.
@@ -195,25 +212,36 @@ public abstract class RestSemanticVersion
 		}
 	}
 
-	public static RestSemanticVersion buildRestSemanticVersion(SemanticVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced,
-			UUID processId) throws RestException
+	/**
+	 * @param sv The version of the item being constructed
+	 * @param includeChronology - true, to also populate the chonology fields of the version being constructed
+	 * @param expandNested - true, to populate nested items like nested semantics
+	 * @param expandReferenced - true, to populate if true, populate a description for the referencedComponent
+	 * @param useLatestStampForExpansions - true, to use the latest stamp from the request info when populating expansions.  False, to use a stamp
+	 *     which is constructed from the fields of the provided sv (this is normally what should be used when populating a list of all versions, so 
+	 *     that the expanded items match the point in time from the version being populated)
+	 * @return
+	 * @throws RestException
+	 */
+	public static RestSemanticVersion buildRestSemanticVersion(SemanticVersion sv, boolean includeChronology, boolean expandNested, boolean expandReferenced, 
+			boolean useLatestStampForExpansions) throws RestException
 	{
 		switch (sv.getChronology().getVersionType())
 		{
 			case COMPONENT_NID:
-				return new RestDynamicSemanticVersion((ComponentNidVersion) sv, includeChronology, expandNested, expandReferenced, processId);
+				return new RestDynamicSemanticVersion((ComponentNidVersion) sv, includeChronology, expandNested, expandReferenced, useLatestStampForExpansions);
 			case DESCRIPTION:
-				return new RestSemanticDescriptionVersion((DescriptionVersion) sv, includeChronology, expandNested, expandReferenced, processId);
+				return new RestSemanticDescriptionVersion((DescriptionVersion) sv, includeChronology, expandNested, expandReferenced, useLatestStampForExpansions);
 			case DYNAMIC:
-				return new RestDynamicSemanticVersion((DynamicVersion<?>) sv, includeChronology, expandNested, expandReferenced, processId);
+				return new RestDynamicSemanticVersion((DynamicVersion<?>) sv, includeChronology, expandNested, expandReferenced, useLatestStampForExpansions);
 			case LONG:
-				return new RestDynamicSemanticVersion((LongVersion) sv, includeChronology, expandNested, expandReferenced, processId);
+				return new RestDynamicSemanticVersion((LongVersion) sv, includeChronology, expandNested, expandReferenced, useLatestStampForExpansions);
 			case MEMBER:
-				return new RestDynamicSemanticVersion((SemanticVersion) sv, includeChronology, expandNested, expandReferenced, processId);
+				return new RestDynamicSemanticVersion((SemanticVersion) sv, includeChronology, expandNested, expandReferenced, useLatestStampForExpansions);
 			case STRING:
-				return new RestDynamicSemanticVersion((StringVersion) sv, includeChronology, expandNested, expandReferenced, processId);
+				return new RestDynamicSemanticVersion((StringVersion) sv, includeChronology, expandNested, expandReferenced, useLatestStampForExpansions);
 			case LOGIC_GRAPH:
-				return new RestSemanticLogicGraphVersion((LogicGraphVersion) sv, includeChronology, processId);
+				return new RestSemanticLogicGraphVersion((LogicGraphVersion) sv, includeChronology, expandReferenced, useLatestStampForExpansions);
 			case UNKNOWN:
 			default :
 				throw new RestException("Semantic Type " + sv.getChronology().getVersionType() + " not currently supported");
@@ -265,5 +293,23 @@ public abstract class RestSemanticVersion
 	{
 		return "RestSemanticVersion [expandables=" + expandables + ", semanticChronology=" + semanticChronology + ", semanticVersion=" + semanticVersion
 				+ ", nestedSemantics=" + nestedSemantics + "]";
+	}
+	
+	protected StampCoordinate computeVersionStamp(SemanticVersion sv, boolean useLatestStampForVersion)
+	{
+		if (useLatestStampForVersion)
+		{
+			return RequestInfo.get().getStampCoordinate();
+		}
+		else
+		{
+			StampCoordinate stampToUse = RequestInfo.get().getStampCoordinate().makeCoordinateAnalog(sv.getTime());
+			//we don't want our nested stuff to be newer than the version being returned.  Also, adjust the module order prefs, so the module
+			//for the stamp being processed is first (but don't exclude existing modules)
+			ArrayList<ConceptSpecification> orderPrefs = new ArrayList<>();
+			orderPrefs.add(new ConceptProxy(sv.getModuleNid()));
+			orderPrefs.addAll(stampToUse.getModulePreferenceOrderForVersions());
+			return stampToUse.makeModulePreferenceOrderAnalog(orderPrefs);
+		}
 	}
 }

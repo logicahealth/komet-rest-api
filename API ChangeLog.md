@@ -15,8 +15,21 @@ Bug fixes should not be documented here, rather, than should be documented in th
 
 *** Don't forget to update the value in the class RestSystemInfo ***
 
-* 2019/03/?? - 1.20.2
+* 2019/06/?? - 1.20.4
+    * Removed deprecated / non-functional Workflow parameters
+	
+* 2019/06/07 - 1.20.3
+    * Added support for 'refset' and 'property' as "restrictTo" criteria on /search/prefix
+    * Added concept/versions/{id} which returns an array of all unique stamps on the concept and any nested semantics.
+    * Added an optional boolean parameter of includeAllVersions to /concept/descriptions/{id}, /semantic/forAssemblage/{id}, 
+        /semantic/forReferencedComponent/{id}
+
+* 2019/04/19 - 1.20.2
     * Added REST API support for query/flowr.  XML formatted FLOWR queries can be submitted, and returned as XML results. 
+    * Added write/1/intake/ibdf for posting / uploading an IBDF file, or a zipped IBDF file.
+    * Added write/1/intake/ibdfArtifact for telling the server to go fetch an IBDF file from the artifact server, and import it.
+    * Added sortFull option to 1/taxonomy/version call, which when set to true, will sort the entire result prior to breaking the result
+        into pages.  This allows the sorting to be consistent from one page to the next.
 
 * 2019/03/28 - 1.20.1
     * Moved the codebase over to depending on the uts-auth-api.  No longer works against prisme.

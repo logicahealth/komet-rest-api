@@ -80,9 +80,9 @@ public class CoordinatesTokens
 						}
 					};
 
-					defaultCoordinatesToken = CoordinatesTokens.getOrCreate(getDefaultManifoldCoordinate().getStampCoordinate(),
-							getDefaultManifoldCoordinate().getLanguageCoordinate(), getDefaultManifoldCoordinate().getLogicCoordinate(),
-							getDefaultManifoldCoordinate().getTaxonomyPremiseType());
+					ManifoldCoordinate mc = getDefaultManifoldCoordinate();
+					defaultCoordinatesToken = CoordinatesTokens.getOrCreate(mc.getStampCoordinate(),
+							mc.getLanguageCoordinate(), mc.getLogicCoordinate(),mc.getTaxonomyPremiseType());
 				}
 			}
 			if (TOKEN_BY_PARAMS_CACHE == null)

@@ -30,6 +30,7 @@
 
 package net.sagebits.tmp.isaac.rest.api1.data.logic;
 
+import sh.isaac.api.coordinate.ManifoldCoordinate;
 import sh.isaac.api.logic.LogicNode;
 import sh.isaac.model.logic.node.AndNode;
 import sh.isaac.model.logic.node.DisjointWithNode;
@@ -67,23 +68,22 @@ public final class RestLogicNodeFactory
 	{
 	}
 
-	public static RestLogicNode create(LogicNode logicNode)
+	public static RestLogicNode create(LogicNode logicNode, ManifoldCoordinate coordForRead)
 	{
-
 		//TODO we don't yet support any of the SubstitutionNode hierarchy
 		//TODO nor do we support TemplateNode
 		if (logicNode instanceof AndNode)
-			return new RestConnectorNode((AndNode) logicNode);
+			return new RestConnectorNode((AndNode) logicNode, coordForRead);
 		else if (logicNode instanceof ConceptNodeWithNids)
-			return new RestConceptNode((ConceptNodeWithNids) logicNode);
+			return new RestConceptNode((ConceptNodeWithNids) logicNode, coordForRead);
 		else if (logicNode instanceof ConceptNodeWithUuids)
-			return new RestConceptNode((ConceptNodeWithUuids) logicNode);
+			return new RestConceptNode((ConceptNodeWithUuids) logicNode, coordForRead);
 		else if (logicNode instanceof DisjointWithNode)
-			return new RestConnectorNode((DisjointWithNode) logicNode);
+			return new RestConnectorNode((DisjointWithNode) logicNode, coordForRead);
 		else if (logicNode instanceof FeatureNodeWithNids)
-			return new RestFeatureNode((FeatureNodeWithNids) logicNode);
+			return new RestFeatureNode((FeatureNodeWithNids) logicNode, coordForRead);
 		else if (logicNode instanceof FeatureNodeWithUuids)
-			return new RestFeatureNode((FeatureNodeWithUuids) logicNode);
+			return new RestFeatureNode((FeatureNodeWithUuids) logicNode, coordForRead);
 		else if (logicNode instanceof LiteralNodeBoolean)
 			return new RestLiteralNodeBoolean((LiteralNodeBoolean) logicNode);
 		else if (logicNode instanceof LiteralNodeDouble)
@@ -95,21 +95,21 @@ public final class RestLogicNodeFactory
 		else if (logicNode instanceof LiteralNodeString)
 			return new RestLiteralNodeString((LiteralNodeString) logicNode);
 		else if (logicNode instanceof NecessarySetNode)
-			return new RestConnectorNode((NecessarySetNode) logicNode);
+			return new RestConnectorNode((NecessarySetNode) logicNode, coordForRead);
 		else if (logicNode instanceof OrNode)
-			return new RestConnectorNode((OrNode) logicNode);
+			return new RestConnectorNode((OrNode) logicNode, coordForRead);
 		else if (logicNode instanceof RoleNodeAllWithNids)
-			return new RestRoleNode((RoleNodeAllWithNids) logicNode);
+			return new RestRoleNode((RoleNodeAllWithNids) logicNode, coordForRead);
 		else if (logicNode instanceof RoleNodeAllWithUuids)
-			return new RestRoleNode((RoleNodeAllWithUuids) logicNode);
+			return new RestRoleNode((RoleNodeAllWithUuids) logicNode, coordForRead);
 		else if (logicNode instanceof RoleNodeSomeWithNids)
-			return new RestRoleNode((RoleNodeSomeWithNids) logicNode);
+			return new RestRoleNode((RoleNodeSomeWithNids) logicNode, coordForRead);
 		else if (logicNode instanceof RoleNodeSomeWithUuids)
-			return new RestRoleNode((RoleNodeSomeWithUuids) logicNode);
+			return new RestRoleNode((RoleNodeSomeWithUuids) logicNode, coordForRead);
 		else if (logicNode instanceof RootNode)
-			return new RestConnectorNode((RootNode) logicNode);
+			return new RestConnectorNode((RootNode) logicNode, coordForRead);
 		else if (logicNode instanceof SufficientSetNode)
-			return new RestConnectorNode((SufficientSetNode) logicNode);
+			return new RestConnectorNode((SufficientSetNode) logicNode, coordForRead);
 		else
 			throw new IllegalArgumentException("create() Failed: Unsupported LogicNode " + logicNode.getClass().getName() + " " + logicNode);
 	}

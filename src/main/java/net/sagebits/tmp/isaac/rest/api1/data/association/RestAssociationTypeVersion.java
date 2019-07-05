@@ -92,12 +92,9 @@ public class RestAssociationTypeVersion extends RestAssociationTypeVersionCreate
 
 	/**
 	 * @param read
-	 * @param processId 
 	 */
-	public RestAssociationTypeVersion(AssociationType read, UUID processId)
+	public RestAssociationTypeVersion(AssociationType read)
 	{
-		// TODO the way that the AssociationType is constructed, it isn't paying attention to language or FQN vs Synonym prefs. This should be
-		// fixed...
 		associationName = read.getAssociationName();
 		associationInverseName = read.getAssociationInverseName().orElse(null);
 		description = read.getDescription();
@@ -105,8 +102,8 @@ public class RestAssociationTypeVersion extends RestAssociationTypeVersionCreate
 
 		if (RequestInfo.get().shouldExpand(ExpandUtil.referencedConcept))
 		{
-			associationConcept = new RestConceptChronology(read.getAssociationTypeConcept(), RequestInfo.get().shouldExpand(ExpandUtil.versionsAllExpandable),
-					RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true, processId);
+			associationConcept = new RestConceptChronology(read.getAssociationTypeConcept(), false,
+					RequestInfo.get().shouldExpand(ExpandUtil.versionsLatestOnlyExpandable), true);
 		}
 		else
 		{

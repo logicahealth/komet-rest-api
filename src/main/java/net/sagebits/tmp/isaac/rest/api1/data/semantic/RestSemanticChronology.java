@@ -31,8 +31,8 @@
 package net.sagebits.tmp.isaac.rest.api1.data.semantic;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.UUID;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.logging.log4j.LogManager;
@@ -112,8 +112,17 @@ public class RestSemanticChronology
 		// For Jaxb
 	}
 
+	/**
+	 * @param sc
+	 * @param includeAllVersions
+	 * @param includeLatestVersion
+	 * @param includeNested
+	 * @param populateReferencedDetails - if true, populate a description for the referencedComponent
+	 * @param stampForReferencedDetailsAndLatestVersion - optional - defaults to stamp in RequestInfo, if not provided
+	 * @throws RestException
+	 */
 	public RestSemanticChronology(SemanticChronology sc, boolean includeAllVersions, boolean includeLatestVersion, boolean includeNested,
-			boolean populateReferencedDetails, UUID processId) throws RestException
+			boolean populateReferencedDetails) throws RestException
 	{
 		identifiers = new RestIdentifiedObject(sc);
 		assemblage = new RestIdentifiedObject(sc.getAssemblageNid(), IsaacObjectType.CONCEPT);
@@ -130,7 +139,7 @@ public class RestSemanticChronology
 				if (VersionType.DESCRIPTION == referencedComponentSemantic.getVersionType())
 				{
 					LatestVersion<DescriptionVersion> ds = referencedComponentSemantic
-							.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, referencedComponentSemantic.getNid()));
+							.getLatestVersion(RequestInfo.get().getStampCoordinate());
 					Util.logContradictions(log, ds);
 					if (ds.isPresent())
 					{
@@ -155,15 +164,24 @@ public class RestSemanticChronology
 				List<SemanticVersion> versionList = sc.getVersionList();
 				for (SemanticVersion sv : versionList)
 				{
-					versions.add(RestSemanticVersion.buildRestSemanticVersion(sv, false, includeNested, populateReferencedDetails, processId));
+					versions.add(RestSemanticVersion.buildRestSemanticVersion(sv, false, includeNested, false, false));
 				}
+				//newest to oldest
+				versions.sort(new Comparator<RestSemanticVersion>()
+				{
+					@Override
+					public int compare(RestSemanticVersion o1, RestSemanticVersion o2)
+					{
+						return -1 * Long.compare(o1.semanticVersion.time, o2.semanticVersion.time);
+					}
+				});
 			}
 			else if (includeLatestVersion)
 			{
-				LatestVersion<SemanticVersion> latest = sc.getLatestVersion(Util.getPreWorkflowStampCoordinate(processId, sc.getNid()));
+				LatestVersion<SemanticVersion> latest = sc.getLatestVersion(RequestInfo.get().getStampCoordinate());
 				if (latest.isPresent())
 				{
-					versions.add(RestSemanticVersion.buildRestSemanticVersion(latest.get(), false, includeNested, populateReferencedDetails, processId));
+					versions.add(RestSemanticVersion.buildRestSemanticVersion(latest.get(), false, includeNested, false, true));
 				}
 			}
 		}
