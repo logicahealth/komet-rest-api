@@ -976,7 +976,7 @@ public class ReadOnlyRestTest extends BaseTestCode
 			{
 				stampCoordinateModules.add(Integer.valueOf(nodeList.item(i).getTextContent()));
 			}
-			Assert.assertEquals(stampCoordinateModules.size(), 11);
+			Assert.assertEquals(stampCoordinateModules.size(), 13);
 			Assert.assertTrue(stampCoordinateModules.contains(MetaData.LOINC_MODULES____SOLOR.getNid()));
 			Assert.assertTrue(stampCoordinateModules.contains(MetaData.CORE_METADATA_MODULE____SOLOR.getNid()));
 			Assert.assertTrue(stampCoordinateModules.contains(MetaData.SNOMED_CT_CORE_MODULES____SOLOR.getNid()));

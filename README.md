@@ -14,7 +14,7 @@ Reach out to us at contact@vetsez.com, https://vetsez.com/ for more details.
 This code has a dependency on https://github.com/OSEHRA/ISAAC
 
 The develop branch of this code tracks the develop branch of ISAAC, so to build this code, you must first check out, and do a 'mvn install' on the develop branch 
-of ISAAC.  This branch is for Java 8.  There is another branch for Java 11.
+of ISAAC.  This branch is for Java 11.  There is another branch for Java 8.
 
 After you have built ISAAC, and installed it into your local repository, then you can build this code with maven.  'mvn clean package' will get you a deployable war file.
 
