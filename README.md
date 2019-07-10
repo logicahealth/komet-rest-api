@@ -13,8 +13,8 @@ Reach out to us at contact@vetsez.com, https://vetsez.com/ for more details.
 ### Building
 This code has a dependency on https://github.com/OSEHRA/ISAAC
 
-The develop branch of this code tracks the develop branch of ISAAC, so to build this code, you must first check out, and do a 'mvn install' on the develop branch 
-of ISAAC.  This branch is for Java 11.  There is another branch for Java 8.
+The develop branch of this code tracks the develop-fx11 branch of ISAAC, so to build this code, you must first check out, and do a 'mvn install' on the develop-fx11 branch 
+of ISAAC.  This branch is for Java 11.  Java 8 support was retired, there is a tag named 'retired/jdk8' with the last of the code that supported JDK 8.
 
 After you have built ISAAC, and installed it into your local repository, then you can build this code with maven.  'mvn clean package' will get you a deployable war file.
 
